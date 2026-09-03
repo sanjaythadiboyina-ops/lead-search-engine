@@ -78,8 +78,7 @@ CATEGORY_MAP = {
 
 @app.get("/")
 def home():
-    return FileResponse(BASE / "index.html")
-
+   return FileResponse(BASE.parent / "frontend" / "index.html")
 
 @app.get("/api/health")
 def health():
