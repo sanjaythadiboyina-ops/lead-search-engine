@@ -338,6 +338,62 @@ def init_database():
                     """
                 )
 
+                # IMPORTANT:
+                # Older versions made place_id globally UNIQUE.
+                # That prevents the same business from being saved for
+                # different logged-in users. Remove that old uniqueness
+                # and replace it with a per-user uniqueness rule.
+                cur.execute(
+                    """
+                    DO $$
+                    DECLARE
+                        r RECORD;
+                    BEGIN
+                        -- Drop old UNIQUE constraints involving place_id.
+                        FOR r IN
+                            SELECT conname
+                            FROM pg_constraint
+                            WHERE conrelid = 'leads'::regclass
+                              AND contype = 'u'
+                              AND pg_get_constraintdef(oid) ILIKE '%place_id%'
+                        LOOP
+                            EXECUTE format(
+                                'ALTER TABLE leads DROP CONSTRAINT IF EXISTS %I',
+                                r.conname
+                            );
+                        END LOOP;
+
+                        -- Drop any old standalone UNIQUE index on place_id.
+                        FOR r IN
+                            SELECT indexrelid::regclass AS index_name
+                            FROM pg_index i
+                            JOIN pg_class c
+                              ON c.oid = i.indexrelid
+                            JOIN pg_attribute a
+                              ON a.attrelid = i.indrelid
+                             AND a.attnum = ANY(i.indkey)
+                            WHERE i.indrelid = 'leads'::regclass
+                              AND i.indisunique = TRUE
+                              AND c.relname <> 'leads_user_place_unique'
+                              AND a.attname = 'place_id'
+                        LOOP
+                            EXECUTE format(
+                                'DROP INDEX IF EXISTS %s',
+                                r.index_name
+                            );
+                        END LOOP;
+                    END $$;
+                    """
+                )
+
+                cur.execute(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    leads_user_place_unique
+                    ON leads(user_id, place_id)
+                    """
+                )
+
                 # SEARCH HISTORY
                 cur.execute(
                     """
@@ -447,7 +503,7 @@ def save_lead(
                     %s, %s, %s, %s,
                     %s, %s, %s, %s
                 )
-                ON CONFLICT(place_id)
+                ON CONFLICT(user_id, place_id)
                 DO UPDATE SET
                     name = EXCLUDED.name,
                     phone = EXCLUDED.phone,
