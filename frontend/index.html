@@ -1,151 +1,508 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lead Search Engine</title>
 
 <style>
-body{
+*{
+    box-sizing:border-box;
     margin:0;
-    background:#0b1020;
-    color:#eee;
-    font:15px Arial;
+    padding:0;
 }
 
-.wrap{
-    max-width:1200px;
-    margin:auto;
-    padding:35px;
+body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f7fffa;
+    color:#173b2b;
 }
 
-h1{font-size:34px}
-
-.sub{
-    color:#aab4d0;
-    margin-bottom:25px;
+button,input,select{
+    font-family:inherit;
 }
 
-.card{
-    background:#121a2d;
-    border:1px solid #293552;
-    border-radius:14px;
+/* ================= AUTH ================= */
+
+.auth-screen{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:linear-gradient(135deg,#f7fffa,#e7f9ed);
     padding:20px;
-    margin:15px 0;
 }
 
-.form{
-    display:grid;
-    grid-template-columns:1fr 1fr 100px 160px;
-    gap:10px;
+.auth-card{
+    width:100%;
+    max-width:430px;
+    background:#fff;
+    border-radius:22px;
+    padding:38px;
+    box-shadow:0 15px 45px rgba(25,100,55,.12);
 }
 
-input,select,button{
-    padding:13px;
-    border-radius:9px;
-    border:1px solid #394765;
-    background:#0d1426;
+.logo{
+    text-align:center;
+    margin-bottom:30px;
+}
+
+.logo-icon{
+    width:58px;
+    height:58px;
+    margin:auto;
+    border-radius:16px;
+    background:#d9f7e3;
+    color:#20a65a;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:28px;
+    font-weight:bold;
+}
+
+.logo h1{
+    margin-top:12px;
+    font-size:25px;
+}
+
+.logo p{
+    color:#769082;
+    margin-top:6px;
+}
+
+.auth-card h2{
+    margin-bottom:8px;
+}
+
+.subtitle{
+    color:#789084;
+    margin-bottom:24px;
+}
+
+.input-group{
+    margin-bottom:16px;
+}
+
+.input-group label{
+    display:block;
+    margin-bottom:7px;
+    font-size:14px;
+    font-weight:bold;
+}
+
+.input-group input,
+.search-input,
+select{
+    width:100%;
+    padding:13px 14px;
+    border:1px solid #d6e7dc;
+    border-radius:10px;
+    background:#fbfffc;
+    outline:none;
+    font-size:15px;
+}
+
+.input-group input:focus,
+.search-input:focus,
+select:focus{
+    border-color:#55c980;
+    box-shadow:0 0 0 3px rgba(85,201,128,.12);
+}
+
+.primary-btn{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:10px;
+    background:#43c878;
     color:white;
-}
-
-button{
-    background:#4f7cff;
+    font-size:15px;
     font-weight:bold;
     cursor:pointer;
 }
 
-button:hover{
-    opacity:.9;
+.primary-btn:hover{
+    background:#31b968;
 }
 
-.export{
-    background:#16855b;
-    margin-top:12px;
+.auth-switch{
+    text-align:center;
+    margin-top:20px;
+    color:#71857a;
+    font-size:14px;
 }
+
+.auth-switch button{
+    border:none;
+    background:none;
+    color:#20a65a;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+.error{
+    color:#d9534f;
+    font-size:14px;
+    margin-bottom:15px;
+}
+
+.success{
+    color:#159447;
+    font-size:14px;
+    margin-bottom:15px;
+}
+
+/* ================= APP ================= */
+
+.app{
+    display:none;
+    min-height:100vh;
+}
+
+.topbar{
+    height:72px;
+    background:white;
+    border-bottom:1px solid #e3eee7;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 32px;
+    position:sticky;
+    top:0;
+    z-index:10;
+}
+
+.brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.brand-icon{
+    width:42px;
+    height:42px;
+    border-radius:11px;
+    background:#d9f7e3;
+    color:#20a65a;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:bold;
+}
+
+.brand h2{
+    font-size:20px;
+}
+
+.user-area{
+    display:flex;
+    align-items:center;
+    gap:15px;
+}
+
+.user-email{
+    color:#65786d;
+    font-size:14px;
+}
+
+.logout-btn,
+.export-btn{
+    border:1px solid #cce6d5;
+    background:white;
+    color:#239a57;
+    padding:9px 15px;
+    border-radius:9px;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+.logout-btn:hover,
+.export-btn:hover{
+    background:#effbf3;
+}
+
+/* ================= MAIN ================= */
+
+.container{
+    max-width:1400px;
+    margin:auto;
+    padding:30px;
+}
+
+.welcome{
+    margin-bottom:25px;
+}
+
+.welcome h1{
+    font-size:30px;
+}
+
+.welcome p{
+    margin-top:7px;
+    color:#789084;
+}
+
+/* ================= STATS ================= */
 
 .stats{
-    display:flex;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:18px;
+    margin-bottom:25px;
+}
+
+.stat-card{
+    background:white;
+    border:1px solid #e3eee7;
+    border-radius:16px;
+    padding:22px;
+    box-shadow:0 5px 18px rgba(35,100,55,.05);
+}
+
+.stat-title{
+    color:#789084;
+    font-size:14px;
+}
+
+.stat-number{
+    font-size:29px;
+    font-weight:bold;
+    margin-top:10px;
+    color:#1e9d56;
+}
+
+/* ================= SEARCH ================= */
+
+.search-card{
+    background:white;
+    border:1px solid #e3eee7;
+    border-radius:16px;
+    padding:25px;
+    margin-bottom:20px;
+}
+
+.search-card h2{
+    margin-bottom:20px;
+}
+
+.search-grid{
+    display:grid;
+    grid-template-columns:2fr 1.5fr 110px 150px;
     gap:12px;
-    flex-wrap:wrap;
 }
 
-.stat{
-    padding:12px 18px;
-    background:#121a2d;
+.search-btn{
+    border:none;
     border-radius:10px;
+    background:#43c878;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
 }
 
-.stat b{
-    display:block;
-    font-size:22px;
+.search-btn:hover{
+    background:#31b968;
 }
+
+.search-btn:disabled{
+    opacity:.6;
+    cursor:not-allowed;
+}
+
+/* ================= TOOLBAR ================= */
+
+.toolbar{
+    display:flex;
+    justify-content:flex-end;
+    margin-bottom:15px;
+}
+
+.export-btn{
+    background:#e5f9ec;
+    border-color:#bce7ca;
+}
+
+/* ================= FILTERS ================= */
 
 .filters{
     display:flex;
-    gap:10px;
-    margin:15px 0;
     flex-wrap:wrap;
+    gap:9px;
+    margin-bottom:18px;
 }
 
-.filters button{
-    background:#1b2742;
+.filter-btn{
+    padding:9px 14px;
+    border-radius:20px;
+    border:1px solid #d4e9dc;
+    background:white;
+    color:#557164;
+    cursor:pointer;
+    font-size:13px;
 }
 
-.filters button.active{
-    background:#4f7cff;
+.filter-btn.active,
+.filter-btn:hover{
+    background:#dcf8e6;
+    color:#168c4a;
+    border-color:#aee5bf;
+}
+
+/* ================= TABLE ================= */
+
+.table-card{
+    background:white;
+    border:1px solid #e3eee7;
+    border-radius:16px;
+    overflow:hidden;
+}
+
+.table-header{
+    padding:20px 22px;
+    border-bottom:1px solid #e6eee9;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.table-wrapper{
+    overflow-x:auto;
 }
 
 table{
     width:100%;
     border-collapse:collapse;
-    min-width:1100px;
-}
-
-th,td{
-    text-align:left;
-    padding:12px;
-    border-bottom:1px solid #293552;
+    min-width:1050px;
 }
 
 th{
-    color:#aab4d0;
+    text-align:left;
+    padding:14px 18px;
+    background:#f5fbf7;
+    color:#60776a;
+    font-size:13px;
 }
 
-.potential{
-    color:#ffd166;
+td{
+    padding:15px 18px;
+    border-top:1px solid #edf3ef;
+    font-size:14px;
+    vertical-align:middle;
 }
 
-.found{
-    color:#7ee2a8;
+.business-name{
+    font-weight:bold;
+    margin-bottom:5px;
 }
 
-.msg{
-    color:#aab4d0;
+.phone{
+    color:#2b9e5c;
 }
 
-a{
-    color:#8eb1ff;
+.website-link,
+.maps-link{
+    color:#168c4a;
+    text-decoration:none;
 }
 
-.statusSelect{
-    padding:8px;
-    border-radius:7px;
-    border:1px solid #394765;
-    background:#0d1426;
-    color:white;
+.website-link:hover,
+.maps-link:hover{
+    text-decoration:underline;
 }
 
-.saved{
-    color:#7ee2a8;
+.badge{
+    display:inline-block;
+    padding:6px 9px;
+    border-radius:20px;
     font-size:12px;
+    font-weight:bold;
 }
 
-@media(max-width:800px){
-    .form{
+.badge-lead{
+    background:#fff5d9;
+    color:#a16c00;
+}
+
+.badge-business{
+    background:#dcf8e6;
+    color:#168c4a;
+}
+
+.status-select{
+    padding:7px 9px;
+    border-radius:8px;
+    border:1px solid #d5e7dc;
+    background:white;
+    font-size:12px;
+    cursor:pointer;
+}
+
+.status-select:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+}
+
+.loading,
+.empty{
+    text-align:center;
+    padding:55px;
+    color:#789084;
+}
+
+.loading{
+    font-size:16px;
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media(max-width:900px){
+
+    .stats{
+        grid-template-columns:repeat(2,1fr);
+    }
+
+    .search-grid{
         grid-template-columns:1fr 1fr;
     }
 
-    button{
-        grid-column:1/-1;
+    .search-btn{
+        padding:13px;
+    }
+}
+
+@media(max-width:600px){
+
+    .topbar{
+        padding:0 15px;
+    }
+
+    .brand h2{
+        font-size:17px;
+    }
+
+    .user-email{
+        display:none;
+    }
+
+    .container{
+        padding:18px;
+    }
+
+    .stats{
+        grid-template-columns:1fr;
+    }
+
+    .search-grid{
+        grid-template-columns:1fr;
+    }
+
+    .auth-card{
+        padding:25px;
+    }
+
+    .welcome h1{
+        font-size:25px;
     }
 }
 </style>
@@ -153,759 +510,1587 @@ a{
 
 <body>
 
-<div class="wrap">
+<!-- ================= AUTH ================= -->
 
-<h1>Lead Search Engine</h1>
+<div class="auth-screen" id="authScreen">
 
-<div class="sub">
-Find businesses, identify potential leads and manage your sales follow-up.
+    <div class="auth-card">
+
+        <div class="logo">
+            <div class="logo-icon">L</div>
+            <h1>Lead Search Engine</h1>
+            <p>Find real business leads faster</p>
+        </div>
+
+        <!-- LOGIN -->
+
+        <div id="loginBox">
+
+            <h2>Welcome back 👋</h2>
+
+            <p class="subtitle">
+                Login to your account
+            </p>
+
+            <div id="loginMessage"></div>
+
+            <div class="input-group">
+                <label>Email</label>
+                <input
+                    type="email"
+                    id="loginEmail"
+                    placeholder="you@example.com"
+                >
+            </div>
+
+            <div class="input-group">
+                <label>Password</label>
+                <input
+                    type="password"
+                    id="loginPassword"
+                    placeholder="Enter password"
+                >
+            </div>
+
+            <button
+                class="primary-btn"
+                id="loginBtn"
+                onclick="login()"
+            >
+                LOGIN
+            </button>
+
+            <div class="auth-switch">
+                Don't have an account?
+                <button onclick="showSignup()">
+                    Create account
+                </button>
+            </div>
+
+        </div>
+
+        <!-- SIGNUP -->
+
+        <div id="signupBox" style="display:none;">
+
+            <h2>Create account 🚀</h2>
+
+            <p class="subtitle">
+                Start finding business leads
+            </p>
+
+            <div id="signupMessage"></div>
+
+            <div class="input-group">
+                <label>Email</label>
+                <input
+                    type="email"
+                    id="signupEmail"
+                    placeholder="you@example.com"
+                >
+            </div>
+
+            <div class="input-group">
+                <label>Password</label>
+                <input
+                    type="password"
+                    id="signupPassword"
+                    placeholder="Minimum 6 characters"
+                >
+            </div>
+
+            <button
+                class="primary-btn"
+                id="signupBtn"
+                onclick="signup()"
+            >
+                CREATE ACCOUNT
+            </button>
+
+            <div class="auth-switch">
+                Already have an account?
+                <button onclick="showLogin()">
+                    Login
+                </button>
+            </div>
+
+        </div>
+
+    </div>
 </div>
 
-<div class="card">
 
-<div class="form">
+<!-- ================= APP ================= -->
 
-<input
-    id="city"
-    value="Vijayawada, Andhra Pradesh"
-    placeholder="City"
->
+<div class="app" id="app">
 
-<input
-    id="cat"
-    value="restaurants"
-    placeholder="Business category"
->
+    <header class="topbar">
 
-<select id="limit">
-    <option>10</option>
-    <option selected>20</option>
-    <option>30</option>
-    <option>40</option>
-    <option>50</option>
-</select>
+        <div class="brand">
 
-<button onclick="search()">
-    SEARCH LEADS
-</button>
+            <div class="brand-icon">
+                L
+            </div>
 
-</div>
+            <h2>
+                Lead Search Engine
+            </h2>
 
-<p id="msg" class="msg"></p>
+        </div>
 
-<button
-    id="exportBtn"
-    class="export"
-    onclick="exportExcel()"
-    style="display:none;"
->
-    EXPORT TO EXCEL
-</button>
+        <div class="user-area">
 
-</div>
+            <span
+                class="user-email"
+                id="userEmail"
+            ></span>
+
+            <button
+                class="logout-btn"
+                onclick="logout()"
+            >
+                Logout
+            </button>
+
+        </div>
+
+    </header>
 
 
-<div class="stats">
+    <main class="container">
 
-<div class="stat">
-    Total
-    <b id="total">0</b>
-</div>
+        <div class="welcome">
 
-<div class="stat">
-    Potential leads
-    <b id="pot">0</b>
-</div>
+            <h1>
+                Lead Dashboard
+            </h1>
 
-<div class="stat">
-    Websites
-    <b id="web">0</b>
-</div>
+            <p>
+                Search real businesses and manage your sales leads.
+            </p>
 
-</div>
+        </div>
 
 
-<div class="filters">
+        <!-- STATS -->
 
-<button id="allBtn" onclick="showAll()">
-    ALL LEADS
-</button>
+        <div class="stats">
 
-<button id="potentialBtn" onclick="showPotential()">
-    POTENTIAL LEADS
-</button>
+            <div class="stat-card">
+                <div class="stat-title">
+                    Total Leads
+                </div>
+                <div
+                    class="stat-number"
+                    id="totalStat"
+                >
+                    0
+                </div>
+            </div>
 
-<button id="websiteBtn" onclick="showWebsites()">
-    WITH WEBSITE
-</button>
+            <div class="stat-card">
+                <div class="stat-title">
+                    Potential Leads
+                </div>
+                <div
+                    class="stat-number"
+                    id="potentialStat"
+                >
+                    0
+                </div>
+            </div>
 
-<button id="contactedBtn" onclick="showContacted()">
-    CONTACTED
-</button>
+            <div class="stat-card">
+                <div class="stat-title">
+                    With Website
+                </div>
+                <div
+                    class="stat-number"
+                    id="websiteStat"
+                >
+                    0
+                </div>
+            </div>
 
-<button id="interestedBtn" onclick="showInterested()">
-    INTERESTED
-</button>
+            <div class="stat-card">
+                <div class="stat-title">
+                    Converted
+                </div>
+                <div
+                    class="stat-number"
+                    id="convertedStat"
+                >
+                    0
+                </div>
+            </div>
 
-<button id="followupBtn" onclick="showFollowup()">
-    FOLLOW-UP
-</button>
-
-<button id="convertedBtn" onclick="showConverted()">
-    CONVERTED
-</button>
-
-</div>
+        </div>
 
 
-<div class="card" style="overflow:auto">
+        <!-- SEARCH -->
 
-<table>
+        <div class="search-card">
 
-<thead>
-<tr>
-    <th>Business</th>
-    <th>Phone</th>
-    <th>Address</th>
-    <th>Website</th>
-    <th>Rating</th>
-    <th>Lead Type</th>
-    <th>Sales Status</th>
-</tr>
-</thead>
+            <h2>
+                🔎 Search Business Leads
+            </h2>
 
-<tbody id="rows">
+            <div class="search-grid">
 
-<tr>
-    <td colspan="7">
-        Search to see leads.
-    </td>
-</tr>
+                <input
+                    class="search-input"
+                    id="city"
+                    value="Vijayawada, Andhra Pradesh"
+                    placeholder="City"
+                >
 
-</tbody>
+                <input
+                    class="search-input"
+                    id="category"
+                    value="restaurants"
+                    placeholder="Category"
+                >
 
-</table>
+                <select id="limit">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="30">30</option>
+                    <option value="40">40</option>
+                    <option value="50">50</option>
+                </select>
 
-</div>
+                <button
+                    class="search-btn"
+                    id="searchBtn"
+                    onclick="searchLeads()"
+                >
+                    SEARCH LEADS
+                </button>
+
+            </div>
+
+            <div id="searchMessage"></div>
+
+        </div>
+
+
+        <!-- EXPORT -->
+
+        <div class="toolbar">
+
+            <button
+                class="export-btn"
+                onclick="exportExcel()"
+            >
+                📊 EXPORT EXCEL
+            </button>
+
+        </div>
+
+
+        <!-- FILTERS -->
+
+        <div class="filters">
+
+            <button
+                class="filter-btn active"
+                onclick="setFilter('ALL',this)"
+            >
+                ALL LEADS
+            </button>
+
+            <button
+                class="filter-btn"
+                onclick="setFilter('Potential Lead',this)"
+            >
+                POTENTIAL
+            </button>
+
+            <button
+                class="filter-btn"
+                onclick="setFilter('Business Found',this)"
+            >
+                WITH WEBSITE
+            </button>
+
+            <button
+                class="filter-btn"
+                onclick="setFilter('Contacted',this)"
+            >
+                CONTACTED
+            </button>
+
+            <button
+                class="filter-btn"
+                onclick="setFilter('Interested',this)"
+            >
+                INTERESTED
+            </button>
+
+            <button
+                class="filter-btn"
+                onclick="setFilter('Follow-up',this)"
+            >
+                FOLLOW-UP
+            </button>
+
+            <button
+                class="filter-btn"
+                onclick="setFilter('Converted',this)"
+            >
+                CONVERTED
+            </button>
+
+        </div>
+
+
+        <!-- TABLE -->
+
+        <div class="table-card">
+
+            <div class="table-header">
+
+                <h2>
+                    Your Leads
+                </h2>
+
+                <span id="resultCount">
+                    0 leads
+                </span>
+
+            </div>
+
+            <div
+                class="table-wrapper"
+                id="tableContainer"
+            >
+
+                <div class="empty">
+                    Search for a city and category
+                    to find leads.
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
 
 </div>
 
 
 <script>
 
+/* =====================================================
+   CONFIG
+===================================================== */
+
+const API = window.location.origin;
+
+let token = localStorage.getItem("lead_token");
+
 let currentLeads = [];
-let currentFilter = "all";
+
+let currentFilter = "ALL";
 
 
-/* HTML ESCAPE */
+/* =====================================================
+   MESSAGE HELPER
+===================================================== */
 
-const e = s =>
-    String(s ?? "").replace(
-        /[&<>"']/g,
-        c => ({
-            "&":"&amp;",
-            "<":"&lt;",
-            ">":"&gt;",
-            '"':"&quot;",
-            "'":"&#39;"
-        }[c])
-    );
+function getErrorMessage(error){
 
+    if(!error){
+        return "Something went wrong.";
+    }
 
-/* LOAD SAVED STATUS */
+    if(typeof error === "string"){
+        return error;
+    }
 
-function getSavedStatus(lead){
+    if(error.message){
+        return error.message;
+    }
 
-    let key =
-        "lead_status_" +
-        encodeURIComponent(
-            lead.name + "_" + lead.address
-        );
-
-    return localStorage.getItem(key)
-        || "Not Contacted";
+    return "Something went wrong. Please try again.";
 }
 
 
-/* SAVE STATUS */
+/* =====================================================
+   AUTH
+===================================================== */
 
-function saveStatus(index, value){
+function showLogin(){
 
-    let lead = currentLeads[index];
+    document.getElementById("loginBox").style.display="block";
 
-    if(!lead) return;
+    document.getElementById("signupBox").style.display="none";
 
-    let key =
-        "lead_status_" +
-        encodeURIComponent(
-            lead.name + "_" + lead.address
-        );
+}
 
-    localStorage.setItem(key, value);
+function showSignup(){
 
-    lead.salesStatus = value;
+    document.getElementById("loginBox").style.display="none";
 
-    document.getElementById("msg").innerHTML =
-        `Status saved: <span class="saved">${e(value)}</span>`;
+    document.getElementById("signupBox").style.display="block";
 
-    renderCurrentFilter();
 }
 
 
-/* SEARCH */
+/* =====================================================
+   LOGIN
+===================================================== */
 
-async function search(){
+async function login(){
+
+    const email =
+        document.getElementById("loginEmail").value.trim();
+
+    const password =
+        document.getElementById("loginPassword").value;
+
+    const message =
+        document.getElementById("loginMessage");
+
+    const button =
+        document.getElementById("loginBtn");
+
+
+    if(!email || !password){
+
+        message.innerHTML =
+            '<div class="error">Enter email and password.</div>';
+
+        return;
+    }
+
+
+    button.disabled=true;
+    button.textContent="LOGGING IN...";
+
+
+    try{
+
+        const response =
+            await fetch(`${API}/api/login`,{
+
+                method:"POST",
+
+                headers:{
+                    "Content-Type":"application/json"
+                },
+
+                body:JSON.stringify({
+                    email,
+                    password
+                })
+
+            });
+
+
+        const data =
+            await response.json();
+
+
+        if(!response.ok){
+
+            throw new Error(
+                typeof data.detail === "string"
+                    ? data.detail
+                    : "Login failed"
+            );
+
+        }
+
+
+        token=data.token;
+
+        localStorage.setItem(
+            "lead_token",
+            token
+        );
+
+
+        startApp(data.user);
+
+
+    }catch(error){
+
+        message.innerHTML =
+            `<div class="error">${getErrorMessage(error)}</div>`;
+
+    }finally{
+
+        button.disabled=false;
+        button.textContent="LOGIN";
+
+    }
+
+}
+
+
+/* =====================================================
+   SIGNUP
+===================================================== */
+
+async function signup(){
+
+    const email =
+        document.getElementById("signupEmail").value.trim();
+
+    const password =
+        document.getElementById("signupPassword").value;
+
+    const message =
+        document.getElementById("signupMessage");
+
+    const button =
+        document.getElementById("signupBtn");
+
+
+    if(!email || !password){
+
+        message.innerHTML =
+            '<div class="error">Enter email and password.</div>';
+
+        return;
+    }
+
+
+    if(password.length<6){
+
+        message.innerHTML =
+            '<div class="error">Password must be at least 6 characters.</div>';
+
+        return;
+    }
+
+
+    button.disabled=true;
+    button.textContent="CREATING...";
+
+
+    try{
+
+        const response =
+            await fetch(`${API}/api/signup`,{
+
+                method:"POST",
+
+                headers:{
+                    "Content-Type":"application/json"
+                },
+
+                body:JSON.stringify({
+                    email,
+                    password
+                })
+
+            });
+
+
+        const data =
+            await response.json();
+
+
+        if(!response.ok){
+
+            throw new Error(
+                typeof data.detail === "string"
+                    ? data.detail
+                    : "Signup failed"
+            );
+
+        }
+
+
+        token=data.token;
+
+        localStorage.setItem(
+            "lead_token",
+            token
+        );
+
+
+        startApp(data.user);
+
+
+    }catch(error){
+
+        message.innerHTML =
+            `<div class="error">${getErrorMessage(error)}</div>`;
+
+    }finally{
+
+        button.disabled=false;
+        button.textContent="CREATE ACCOUNT";
+
+    }
+
+}
+
+
+/* =====================================================
+   START APP
+===================================================== */
+
+function startApp(user){
+
+    document.getElementById("authScreen").style.display="none";
+
+    document.getElementById("app").style.display="block";
+
+    document.getElementById("userEmail").textContent =
+        user.email || "";
+
+    loadLeads();
+
+}
+
+
+/* =====================================================
+   LOGOUT
+===================================================== */
+
+function logout(){
+
+    localStorage.removeItem("lead_token");
+
+    token=null;
+
+    currentLeads=[];
+
+    document.getElementById("app").style.display="none";
+
+    document.getElementById("authScreen").style.display="flex";
+
+    showLogin();
+
+}
+
+
+/* =====================================================
+   AUTH HEADERS
+===================================================== */
+
+function authHeaders(){
+
+    return {
+        "Authorization":`Bearer ${token}`
+    };
+
+}
+
+
+/* =====================================================
+   LOAD LEADS
+===================================================== */
+
+async function loadLeads(){
+
+    if(!token){
+        return;
+    }
+
+
+    try{
+
+        const response =
+            await fetch(`${API}/api/leads`,{
+
+                headers:authHeaders()
+
+            });
+
+
+        if(response.status===401){
+
+            logout();
+            return;
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        if(!response.ok){
+
+            throw new Error(
+                typeof data.detail==="string"
+                    ? data.detail
+                    : "Could not load leads"
+            );
+
+        }
+
+
+        currentLeads =
+            Array.isArray(data.leads)
+                ? data.leads
+                : [];
+
+
+        updateStats();
+
+        renderLeads();
+
+
+    }catch(error){
+
+        console.error(
+            "Load leads error:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =====================================================
+   SEARCH
+===================================================== */
+
+async function searchLeads(){
 
     const city =
         document.getElementById("city").value.trim();
 
     const category =
-        document.getElementById("cat").value.trim();
+        document.getElementById("category").value.trim();
 
     const limit =
         document.getElementById("limit").value;
 
-    if(!city){
+    const message =
+        document.getElementById("searchMessage");
 
-        document.getElementById("msg").textContent =
-            "Please enter a city.";
+    const button =
+        document.getElementById("searchBtn");
+
+
+    if(!city || !category){
+
+        message.innerHTML =
+            '<div class="error">Enter city and category.</div>';
 
         return;
     }
 
-    if(!category){
 
-        document.getElementById("msg").textContent =
-            "Please enter a business category.";
+    button.disabled=true;
+    button.textContent="SEARCHING...";
 
-        return;
-    }
 
-    document.getElementById("msg").textContent =
-        "Searching for real businesses...";
+    document.getElementById("tableContainer").innerHTML =
+        '<div class="loading">🔎 Searching real businesses...</div>';
 
-    document.getElementById("exportBtn").style.display =
-        "none";
+    message.innerHTML="";
 
-    document.getElementById("rows").innerHTML =
-        `<tr><td colspan="7">Searching...</td></tr>`;
 
     try{
 
         const url =
-            `/api/search?city=${encodeURIComponent(city)}&category=${encodeURIComponent(category)}&limit=${encodeURIComponent(limit)}`;
+            `${API}/api/search?city=${encodeURIComponent(city)}&category=${encodeURIComponent(category)}&limit=${encodeURIComponent(limit)}`;
 
-        const response = await fetch(url);
+
+        const response =
+            await fetch(url,{
+
+                headers:authHeaders()
+
+            });
+
+
+        if(response.status===401){
+
+            logout();
+            return;
+
+        }
+
+
+        const data =
+            await response.json();
+
 
         if(!response.ok){
 
             throw new Error(
-                `HTTP ${response.status}`
+                typeof data.detail==="string"
+                    ? data.detail
+                    : "Search failed"
             );
-        }
-
-        const data = await response.json();
-
-        console.log("API RESPONSE:", data);
-
-        if(!data.success){
-
-            document.getElementById("msg").textContent =
-                data.error || "Search failed.";
-
-            document.getElementById("rows").innerHTML =
-                `<tr>
-                    <td colspan="7">
-                        ${e(data.error || "Search failed.")}
-                    </td>
-                </tr>`;
-
-            return;
-        }
-
-        currentLeads =
-            Array.isArray(data.leads)
-            ? data.leads
-            : [];
-
-        currentLeads.forEach(lead => {
-
-            lead.salesStatus =
-                getSavedStatus(lead);
-
-        });
-
-
-        /* STATS */
-
-        document.getElementById("total").textContent =
-            currentLeads.length;
-
-        document.getElementById("pot").textContent =
-            currentLeads.filter(
-                lead => lead.lead_type === "Potential Lead"
-            ).length;
-
-        document.getElementById("web").textContent =
-            currentLeads.filter(
-                lead => !!lead.website
-            ).length;
-
-
-        document.getElementById("msg").textContent =
-            `Found ${currentLeads.length} businesses.`;
-
-
-        if(currentLeads.length > 0){
-
-            document.getElementById("exportBtn")
-                .style.display = "inline-block";
 
         }
 
 
-        currentFilter = "all";
+        /*
+         IMPORTANT:
+         Search result may sometimes not contain database ID.
+         We therefore reload the user's saved leads after search.
+         This guarantees that status updates use real database IDs.
+        */
 
-        setActiveButton("allBtn");
+        await loadLeads();
 
-        renderCurrentFilter();
 
-    }
+        message.innerHTML =
+            `<div class="success">${Number(data.total)||0} leads found.</div>`;
 
-    catch(error){
 
-        console.error("SEARCH ERROR:", error);
+    }catch(error){
 
-        document.getElementById("msg").textContent =
-            "Backend connection error.";
+        const errorMessage =
+            getErrorMessage(error);
 
-        document.getElementById("rows").innerHTML =
-            `<tr>
-                <td colspan="7">
-                    Backend connection error.
-                </td>
-            </tr>`;
+        document.getElementById("tableContainer").innerHTML =
+            `<div class="empty">${escapeHtml(errorMessage)}</div>`;
+
+        message.innerHTML =
+            `<div class="error">${escapeHtml(errorMessage)}</div>`;
+
+    }finally{
+
+        button.disabled=false;
+        button.textContent="SEARCH LEADS";
 
     }
 
 }
 
 
-/* FILTER DATA */
+/* =====================================================
+   STATS
+===================================================== */
 
-function getFilteredLeads(){
+function updateStats(){
 
-    if(currentFilter === "potential"){
-
-        return currentLeads.filter(
-            lead => lead.lead_type === "Potential Lead"
-        );
-
-    }
+    const total =
+        currentLeads.length;
 
 
-    if(currentFilter === "website"){
-
-        return currentLeads.filter(
-            lead => !!lead.website
-        );
-
-    }
+    const potential =
+        currentLeads.filter(
+            lead =>
+                lead.lead_type==="Potential Lead"
+        ).length;
 
 
-    if(currentFilter === "contacted"){
-
-        return currentLeads.filter(
-            lead => lead.salesStatus === "Contacted"
-        );
-
-    }
+    const websites =
+        currentLeads.filter(
+            lead =>
+                !!lead.website
+        ).length;
 
 
-    if(currentFilter === "interested"){
-
-        return currentLeads.filter(
-            lead => lead.salesStatus === "Interested"
-        );
-
-    }
+    const converted =
+        currentLeads.filter(
+            lead =>
+                lead.status==="Converted"
+        ).length;
 
 
-    if(currentFilter === "followup"){
+    document.getElementById("totalStat").textContent=total;
 
-        return currentLeads.filter(
-            lead => lead.salesStatus === "Follow-up"
-        );
+    document.getElementById("potentialStat").textContent=potential;
 
-    }
+    document.getElementById("websiteStat").textContent=websites;
 
-
-    if(currentFilter === "converted"){
-
-        return currentLeads.filter(
-            lead => lead.salesStatus === "Converted"
-        );
-
-    }
-
-
-    return currentLeads;
+    document.getElementById("convertedStat").textContent=converted;
 
 }
 
 
-/* RENDER CURRENT FILTER */
+/* =====================================================
+   FILTER
+===================================================== */
 
-function renderCurrentFilter(){
+function setFilter(filter,button){
 
-    renderLeads(
-        getFilteredLeads()
+    currentFilter=filter;
+
+
+    document.querySelectorAll(
+        ".filter-btn"
+    ).forEach(
+        btn =>
+            btn.classList.remove("active")
     );
 
+
+    button.classList.add("active");
+
+    renderLeads();
+
 }
 
 
-/* RENDER TABLE */
+/* =====================================================
+   SAFE LEAD ID
+===================================================== */
 
-function renderLeads(leads){
+function getLeadId(lead){
 
-    const rows =
-        document.getElementById("rows");
+    if(!lead){
+        return null;
+    }
 
 
-    if(!Array.isArray(leads) || leads.length === 0){
+    const possibleId =
+        lead.id ??
+        lead.lead_id ??
+        lead.db_id ??
+        lead.database_id;
 
-        rows.innerHTML =
-            `<tr>
-                <td colspan="7">
-                    No leads in this category.
-                </td>
-            </tr>`;
 
-        return;
+    if(
+        possibleId===undefined ||
+        possibleId===null ||
+        possibleId===""
+    ){
+        return null;
+    }
+
+
+    const numberId =
+        Number(possibleId);
+
+
+    if(!Number.isInteger(numberId) || numberId<=0){
+        return null;
+    }
+
+
+    return numberId;
+
+}
+
+
+/* =====================================================
+   SAFE URL
+===================================================== */
+
+function safeUrl(value){
+
+    if(!value){
+        return null;
+    }
+
+
+    let url =
+        String(value).trim();
+
+
+    if(!url){
+        return null;
+    }
+
+
+    /*
+     Fix old malformed local links such as:
+     http://127.0.0.1:8000/www.example.com
+    */
+
+    const localPrefix =
+        `${window.location.origin}/`;
+
+
+    if(url.startsWith(localPrefix)){
+
+        const rest =
+            url.substring(localPrefix.length);
+
+        if(
+            rest.startsWith("www.") ||
+            rest.startsWith("http://") ||
+            rest.startsWith("https://")
+        ){
+            url=rest;
+        }
 
     }
 
 
-    rows.innerHTML = leads.map(lead => {
-
-        const index =
-            currentLeads.indexOf(lead);
-
-
-        const leadType =
-            lead.lead_type ||
-            "Potential Lead";
-
-
-        const statusClass =
-            leadType === "Potential Lead"
-            ? "potential"
-            : "found";
-
-
-        const websiteHTML =
-            lead.website
-            ?
-            `<a
-                target="_blank"
-                rel="noopener"
-                href="${e(lead.website)}"
-            >
-                Website
-            </a>`
-            :
-            "—";
-
-
-        return `
-
-        <tr>
-
-            <td>
-                <b>${e(lead.name)}</b>
-                <br>
-                <span class="msg">
-                    ${e(lead.category)}
-                </span>
-            </td>
-
-            <td>
-                ${e(lead.phone)}
-            </td>
-
-            <td>
-                ${e(lead.address)}
-            </td>
-
-            <td>
-                ${websiteHTML}
-            </td>
-
-            <td>
-                ${e(lead.rating)}
-                ${
-                    lead.reviews
-                    ? ` (${e(lead.reviews)})`
-                    : ""
-                }
-            </td>
-
-            <td class="${statusClass}">
-                ${e(leadType)}
-            </td>
-
-            <td>
-
-                <select
-                    class="statusSelect"
-                    onchange="saveStatus(${index}, this.value)"
-                >
-
-                    <option
-                        ${lead.salesStatus === "Not Contacted" ? "selected" : ""}
-                    >
-                        Not Contacted
-                    </option>
-
-                    <option
-                        ${lead.salesStatus === "Contacted" ? "selected" : ""}
-                    >
-                        Contacted
-                    </option>
-
-                    <option
-                        ${lead.salesStatus === "Interested" ? "selected" : ""}
-                    >
-                        Interested
-                    </option>
-
-                    <option
-                        ${lead.salesStatus === "Follow-up" ? "selected" : ""}
-                    >
-                        Follow-up
-                    </option>
-
-                    <option
-                        ${lead.salesStatus === "Converted" ? "selected" : ""}
-                    >
-                        Converted
-                    </option>
-
-                </select>
-
-            </td>
-
-        </tr>
-
-        `;
-
-    }).join("");
-
-}
-
-
-/* FILTER FUNCTIONS */
-
-function showAll(){
-
-    currentFilter = "all";
-
-    setActiveButton("allBtn");
-
-    renderCurrentFilter();
-
-}
-
-
-function showPotential(){
-
-    currentFilter = "potential";
-
-    setActiveButton("potentialBtn");
-
-    renderCurrentFilter();
-
-}
-
-
-function showWebsites(){
-
-    currentFilter = "website";
-
-    setActiveButton("websiteBtn");
-
-    renderCurrentFilter();
-
-}
-
-
-function showContacted(){
-
-    currentFilter = "contacted";
-
-    setActiveButton("contactedBtn");
-
-    renderCurrentFilter();
-
-}
-
-
-function showInterested(){
-
-    currentFilter = "interested";
-
-    setActiveButton("interestedBtn");
-
-    renderCurrentFilter();
-
-}
-
-
-function showFollowup(){
-
-    currentFilter = "followup";
-
-    setActiveButton("followupBtn");
-
-    renderCurrentFilter();
-
-}
-
-
-function showConverted(){
-
-    currentFilter = "converted";
-
-    setActiveButton("convertedBtn");
-
-    renderCurrentFilter();
-
-}
-
-
-/* ACTIVE BUTTON */
-
-function setActiveButton(id){
-
-    document
-        .querySelectorAll(".filters button")
-        .forEach(btn =>
-            btn.classList.remove("active")
-        );
-
-
-    const button =
-        document.getElementById(id);
-
-    if(button){
-
-        button.classList.add("active");
-
-    }
-
-}
-
-
-/* EXPORT */
-
-function exportExcel(){
-
-    if(!currentLeads.length){
-
-        alert("Search for leads first.");
-
-        return;
+    if(
+        !url.startsWith("http://") &&
+        !url.startsWith("https://")
+    ){
+
+        url="https://"+url;
 
     }
 
 
-    const headers = [
+    return url;
 
-        "Business Name",
-        "Category",
-        "Phone",
-        "Address",
-        "Website",
-        "Maps",
-        "Rating",
-        "Reviews",
-        "Lead Type",
-        "Sales Status"
+}
 
+
+/* =====================================================
+   RENDER
+===================================================== */
+
+function renderLeads(){
+
+    let leads=[
+        ...currentLeads
     ];
 
 
-    let csv =
-        headers.join(",") + "\n";
+    if(currentFilter!=="ALL"){
+
+        if(
+            currentFilter==="Potential Lead" ||
+            currentFilter==="Business Found"
+        ){
+
+            leads=
+                leads.filter(
+                    lead =>
+                        lead.lead_type===currentFilter
+                );
+
+        }else{
+
+            leads=
+                leads.filter(
+                    lead =>
+                        lead.status===currentFilter
+                );
+
+        }
+
+    }
 
 
-    currentLeads.forEach(lead => {
-
-        const row = [
-
-            lead.name,
-            lead.category,
-            lead.phone,
-            lead.address,
-            lead.website,
-            lead.maps,
-            lead.rating,
-            lead.reviews,
-            lead.lead_type,
-            lead.salesStatus
-
-        ].map(value => {
-
-            value =
-                String(value ?? "");
-
-            value =
-                value.replace(/"/g,'""');
-
-            return `"${value}"`;
-
-        });
+    document.getElementById("resultCount").textContent =
+        `${leads.length} leads`;
 
 
-        csv +=
-            row.join(",") + "\n";
+    if(!leads.length){
+
+        document.getElementById("tableContainer").innerHTML =
+            '<div class="empty">No leads found.</div>';
+
+        return;
+
+    }
+
+
+    let html=`
+
+        <table>
+
+            <thead>
+
+                <tr>
+                    <th>Business</th>
+                    <th>Phone</th>
+                    <th>Address</th>
+                    <th>Website</th>
+                    <th>Rating</th>
+                    <th>Lead Type</th>
+                    <th>Status</th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+    `;
+
+
+    leads.forEach(lead=>{
+
+        const typeClass =
+            lead.lead_type==="Potential Lead"
+                ? "badge-lead"
+                : "badge-business";
+
+
+        const leadId =
+            getLeadId(lead);
+
+
+        const website =
+            safeUrl(lead.website);
+
+
+        const maps =
+            safeUrl(lead.maps);
+
+
+        const status =
+            lead.status || "Not Contacted";
+
+
+        html+=`
+
+            <tr>
+
+                <td>
+
+                    <div class="business-name">
+                        ${escapeHtml(lead.name || "-")}
+                    </div>
+
+                    ${
+                        maps
+                            ? `
+                                <a
+                                    class="maps-link"
+                                    href="${escapeAttribute(maps)}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    📍 Maps
+                                </a>
+                              `
+                            : ""
+                    }
+
+                </td>
+
+
+                <td class="phone">
+                    ${escapeHtml(lead.phone || "-")}
+                </td>
+
+
+                <td>
+                    ${escapeHtml(lead.address || "-")}
+                </td>
+
+
+                <td>
+
+                    ${
+                        website
+                            ? `
+                                <a
+                                    class="website-link"
+                                    href="${escapeAttribute(website)}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    🌐 Website
+                                </a>
+                              `
+                            : "-"
+                    }
+
+                </td>
+
+
+                <td>
+
+                    ${escapeHtml(
+                        lead.rating !== null &&
+                        lead.rating !== undefined &&
+                        lead.rating !== ""
+                            ? String(lead.rating)
+                            : "-"
+                    )}
+
+                    ${
+                        lead.reviews
+                            ? ` (${escapeHtml(String(lead.reviews))})`
+                            : ""
+                    }
+
+                </td>
+
+
+                <td>
+
+                    <span class="badge ${typeClass}">
+                        ${escapeHtml(lead.lead_type || "-")}
+                    </span>
+
+                </td>
+
+
+                <td>
+
+                    <select
+                        class="status-select"
+                        ${leadId===null ? "disabled" : ""}
+                        title="${
+                            leadId===null
+                                ? "Lead ID unavailable"
+                                : "Update lead status"
+                        }"
+                        onchange="updateStatus(${leadId===null ? "null" : leadId},this.value)"
+                    >
+
+                        ${statusOption(
+                            "Not Contacted",
+                            status
+                        )}
+
+                        ${statusOption(
+                            "Contacted",
+                            status
+                        )}
+
+                        ${statusOption(
+                            "Interested",
+                            status
+                        )}
+
+                        ${statusOption(
+                            "Follow-up",
+                            status
+                        )}
+
+                        ${statusOption(
+                            "Converted",
+                            status
+                        )}
+
+                    </select>
+
+                </td>
+
+            </tr>
+
+        `;
 
     });
 
 
-    const blob =
-        new Blob(
-            ["\ufeff" + csv],
-            {
-                type:"text/csv;charset=utf-8;"
-            }
-        );
+    html+=`
+
+            </tbody>
+
+        </table>
+
+    `;
 
 
-    const url =
-        URL.createObjectURL(blob);
-
-
-    const link =
-        document.createElement("a");
-
-
-    link.href = url;
-
-    link.download =
-        "lead_search_results.csv";
-
-
-    document.body.appendChild(link);
-
-    link.click();
-
-    document.body.removeChild(link);
-
-    URL.revokeObjectURL(url);
+    document.getElementById("tableContainer").innerHTML=html;
 
 }
+
+
+/* =====================================================
+   STATUS OPTION
+===================================================== */
+
+function statusOption(value,current){
+
+    return `
+
+        <option
+            value="${escapeAttribute(value)}"
+            ${value===current ? "selected" : ""}
+        >
+            ${escapeHtml(value)}
+        </option>
+
+    `;
+
+}
+
+
+/* =====================================================
+   UPDATE STATUS
+===================================================== */
+
+async function updateStatus(leadId,status){
+
+    /*
+     Prevent the exact old problem:
+     /api/leads/undefined/status
+    */
+
+    if(
+        leadId===null ||
+        leadId===undefined ||
+        !Number.isInteger(Number(leadId)) ||
+        Number(leadId)<=0
+    ){
+
+        alert(
+            "This lead does not have a valid database ID. Please search again and try once more."
+        );
+
+        await loadLeads();
+
+        return;
+
+    }
+
+
+    try{
+
+        const response =
+            await fetch(
+                `${API}/api/leads/${Number(leadId)}/status`,
+                {
+
+                    method:"PATCH",
+
+                    headers:{
+                        ...authHeaders(),
+                        "Content-Type":"application/json"
+                    },
+
+                    body:JSON.stringify({
+                        status:status
+                    })
+
+                }
+            );
+
+
+        if(response.status===401){
+
+            logout();
+            return;
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        if(!response.ok){
+
+            let detail="Status update failed.";
+
+            if(typeof data.detail==="string"){
+                detail=data.detail;
+            }else if(Array.isArray(data.detail)){
+                detail=data.detail
+                    .map(item=>item.msg || "Invalid request")
+                    .join(", ");
+            }
+
+
+            throw new Error(detail);
+
+        }
+
+
+        const lead =
+            currentLeads.find(
+                item =>
+                    getLeadId(item)===Number(leadId)
+            );
+
+
+        if(lead){
+
+            lead.status=status;
+
+        }
+
+
+        updateStats();
+
+        renderLeads();
+
+
+    }catch(error){
+
+        alert(
+            getErrorMessage(error)
+        );
+
+        /*
+         Reload DB data after an error so UI
+         doesn't show an incorrect status.
+        */
+
+        await loadLeads();
+
+    }
+
+}
+
+
+/* =====================================================
+   EXPORT EXCEL
+===================================================== */
+
+async function exportExcel(){
+
+    if(!token){
+
+        alert("Please login first.");
+
+        return;
+
+    }
+
+
+    try{
+
+        const response =
+            await fetch(
+                `${API}/api/export-excel`,
+                {
+                    method:"GET",
+                    headers:authHeaders()
+                }
+            );
+
+
+        if(response.status===401){
+
+            logout();
+            return;
+
+        }
+
+
+        if(!response.ok){
+
+            let message="Excel export failed.";
+
+            try{
+
+                const data =
+                    await response.json();
+
+                if(typeof data.detail==="string"){
+                    message=data.detail;
+                }
+
+            }catch(e){}
+
+            throw new Error(message);
+
+        }
+
+
+        const blob =
+            await response.blob();
+
+
+        const url =
+            window.URL.createObjectURL(blob);
+
+
+        const link =
+            document.createElement("a");
+
+
+        link.href=url;
+
+        link.download="lead_search_results.xlsx";
+
+        document.body.appendChild(link);
+
+        link.click();
+
+        link.remove();
+
+        window.URL.revokeObjectURL(url);
+
+
+    }catch(error){
+
+        alert(
+            getErrorMessage(error)
+        );
+
+    }
+
+}
+
+
+/* =====================================================
+   HTML SECURITY
+===================================================== */
+
+function escapeHtml(value){
+
+    return String(value ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+
+}
+
+
+function escapeAttribute(value){
+
+    return escapeHtml(value);
+
+}
+
+
+/* =====================================================
+   AUTO LOGIN
+===================================================== */
+
+async function checkLogin(){
+
+    if(!token){
+
+        document.getElementById("authScreen").style.display="flex";
+
+        document.getElementById("app").style.display="none";
+
+        return;
+
+    }
+
+
+    try{
+
+        const response =
+            await fetch(
+                `${API}/api/me`,
+                {
+                    headers:authHeaders()
+                }
+            );
+
+
+        if(!response.ok){
+
+            localStorage.removeItem("lead_token");
+
+            token=null;
+
+            return;
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        startApp(data.user);
+
+
+    }catch(error){
+
+        console.error(
+            "Auto login error:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =====================================================
+   START
+===================================================== */
+
+checkLogin();
 
 </script>
 
