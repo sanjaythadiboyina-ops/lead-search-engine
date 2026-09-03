@@ -263,25 +263,23 @@ Find businesses, identify potential leads and manage your sales follow-up.
 <table>
 
 <thead>
-
 <tr>
-<th>Business</th>
-<th>Phone</th>
-<th>Address</th>
-<th>Website</th>
-<th>Rating</th>
-<th>Lead Type</th>
-<th>Sales Status</th>
+    <th>Business</th>
+    <th>Phone</th>
+    <th>Address</th>
+    <th>Website</th>
+    <th>Rating</th>
+    <th>Lead Type</th>
+    <th>Sales Status</th>
 </tr>
-
 </thead>
 
 <tbody id="rows">
 
 <tr>
-<td colspan="7">
-Search to see leads.
-</td>
+    <td colspan="7">
+        Search to see leads.
+    </td>
 </tr>
 
 </tbody>
@@ -296,21 +294,22 @@ Search to see leads.
 <script>
 
 let currentLeads = [];
-
 let currentFilter = "all";
 
 
+/* HTML ESCAPE */
+
 const e = s =>
-String(s ?? "").replace(
-    /[&<>"']/g,
-    c => ({
-        "&":"&amp;",
-        "<":"&lt;",
-        ">":"&gt;",
-        '"':"&quot;",
-        "'":"&#39;"
-    }[c])
-);
+    String(s ?? "").replace(
+        /[&<>"']/g,
+        c => ({
+            "&":"&amp;",
+            "<":"&lt;",
+            ">":"&gt;",
+            '"':"&quot;",
+            "'":"&#39;"
+        }[c])
+    );
 
 
 /* LOAD SAVED STATUS */
@@ -357,14 +356,30 @@ function saveStatus(index, value){
 
 async function search(){
 
-    let city =
-        document.getElementById("city").value;
+    const city =
+        document.getElementById("city").value.trim();
 
-    let category =
-        document.getElementById("cat").value;
+    const category =
+        document.getElementById("cat").value.trim();
 
-    let limit =
+    const limit =
         document.getElementById("limit").value;
+
+    if(!city){
+
+        document.getElementById("msg").textContent =
+            "Please enter a city.";
+
+        return;
+    }
+
+    if(!category){
+
+        document.getElementById("msg").textContent =
+            "Please enter a business category.";
+
+        return;
+    }
 
     document.getElementById("msg").textContent =
         "Searching for real businesses...";
@@ -372,43 +387,74 @@ async function search(){
     document.getElementById("exportBtn").style.display =
         "none";
 
+    document.getElementById("rows").innerHTML =
+        `<tr><td colspan="7">Searching...</td></tr>`;
+
     try{
 
-        let response = await fetch(
-            `/api/search?city=${encodeURIComponent(city)}&category=${encodeURIComponent(category)}&limit=${limit}`
-        );
+        const url =
+            `/api/search?city=${encodeURIComponent(city)}&category=${encodeURIComponent(category)}&limit=${encodeURIComponent(limit)}`;
 
-        let data = await response.json();
+        const response = await fetch(url);
 
-        if(!data.ok){
+        if(!response.ok){
+
+            throw new Error(
+                `HTTP ${response.status}`
+            );
+        }
+
+        const data = await response.json();
+
+        console.log("API RESPONSE:", data);
+
+        if(!data.success){
 
             document.getElementById("msg").textContent =
-                data.error;
+                data.error || "Search failed.";
+
+            document.getElementById("rows").innerHTML =
+                `<tr>
+                    <td colspan="7">
+                        ${e(data.error || "Search failed.")}
+                    </td>
+                </tr>`;
 
             return;
         }
 
-        currentLeads = data.leads || [];
+        currentLeads =
+            Array.isArray(data.leads)
+            ? data.leads
+            : [];
 
         currentLeads.forEach(lead => {
-            lead.salesStatus = getSavedStatus(lead);
+
+            lead.salesStatus =
+                getSavedStatus(lead);
+
         });
+
+
+        /* STATS */
 
         document.getElementById("total").textContent =
             currentLeads.length;
 
         document.getElementById("pot").textContent =
             currentLeads.filter(
-                z => z.status === "Potential Lead"
+                lead => lead.lead_type === "Potential Lead"
             ).length;
 
         document.getElementById("web").textContent =
             currentLeads.filter(
-                z => z.website
+                lead => !!lead.website
             ).length;
+
 
         document.getElementById("msg").textContent =
             `Found ${currentLeads.length} businesses.`;
+
 
         if(currentLeads.length > 0){
 
@@ -416,6 +462,7 @@ async function search(){
                 .style.display = "inline-block";
 
         }
+
 
         currentFilter = "all";
 
@@ -427,10 +474,20 @@ async function search(){
 
     catch(error){
 
+        console.error("SEARCH ERROR:", error);
+
         document.getElementById("msg").textContent =
             "Backend connection error.";
 
+        document.getElementById("rows").innerHTML =
+            `<tr>
+                <td colspan="7">
+                    Backend connection error.
+                </td>
+            </tr>`;
+
     }
+
 }
 
 
@@ -441,52 +498,59 @@ function getFilteredLeads(){
     if(currentFilter === "potential"){
 
         return currentLeads.filter(
-            z => z.status === "Potential Lead"
+            lead => lead.lead_type === "Potential Lead"
         );
 
     }
+
 
     if(currentFilter === "website"){
 
         return currentLeads.filter(
-            z => z.website
+            lead => !!lead.website
         );
 
     }
+
 
     if(currentFilter === "contacted"){
 
         return currentLeads.filter(
-            z => z.salesStatus === "Contacted"
+            lead => lead.salesStatus === "Contacted"
         );
 
     }
+
 
     if(currentFilter === "interested"){
 
         return currentLeads.filter(
-            z => z.salesStatus === "Interested"
+            lead => lead.salesStatus === "Interested"
         );
 
     }
+
 
     if(currentFilter === "followup"){
 
         return currentLeads.filter(
-            z => z.salesStatus === "Follow-up"
+            lead => lead.salesStatus === "Follow-up"
         );
 
     }
+
 
     if(currentFilter === "converted"){
 
         return currentLeads.filter(
-            z => z.salesStatus === "Converted"
+            lead => lead.salesStatus === "Converted"
         );
 
     }
 
+
     return currentLeads;
+
 }
 
 
@@ -497,6 +561,7 @@ function renderCurrentFilter(){
     renderLeads(
         getFilteredLeads()
     );
+
 }
 
 
@@ -504,12 +569,54 @@ function renderCurrentFilter(){
 
 function renderLeads(leads){
 
-    document.getElementById("rows").innerHTML =
+    const rows =
+        document.getElementById("rows");
 
-    leads.map(lead => {
 
-        let index =
+    if(!Array.isArray(leads) || leads.length === 0){
+
+        rows.innerHTML =
+            `<tr>
+                <td colspan="7">
+                    No leads in this category.
+                </td>
+            </tr>`;
+
+        return;
+
+    }
+
+
+    rows.innerHTML = leads.map(lead => {
+
+        const index =
             currentLeads.indexOf(lead);
+
+
+        const leadType =
+            lead.lead_type ||
+            "Potential Lead";
+
+
+        const statusClass =
+            leadType === "Potential Lead"
+            ? "potential"
+            : "found";
+
+
+        const websiteHTML =
+            lead.website
+            ?
+            `<a
+                target="_blank"
+                rel="noopener"
+                href="${e(lead.website)}"
+            >
+                Website
+            </a>`
+            :
+            "—";
+
 
         return `
 
@@ -532,33 +639,20 @@ function renderLeads(leads){
             </td>
 
             <td>
-                ${
-                    lead.website
-                    ?
-                    `<a
-                        target="_blank"
-                        href="${e(lead.website)}"
-                    >
-                        Website
-                    </a>`
-                    :
-                    "—"
-                }
+                ${websiteHTML}
             </td>
 
             <td>
                 ${e(lead.rating)}
-                ${lead.reviews ? `(${e(lead.reviews)})` : ""}
+                ${
+                    lead.reviews
+                    ? ` (${e(lead.reviews)})`
+                    : ""
+                }
             </td>
 
-            <td
-                class="${
-                    lead.status === "Potential Lead"
-                    ? "potential"
-                    : "found"
-                }"
-            >
-                ${e(lead.status)}
+            <td class="${statusClass}">
+                ${e(leadType)}
             </td>
 
             <td>
@@ -606,17 +700,8 @@ function renderLeads(leads){
 
         `;
 
-    }).join("")
+    }).join("");
 
-    ||
-
-    `
-    <tr>
-        <td colspan="7">
-            No leads in this category.
-        </td>
-    </tr>
-    `;
 }
 
 
@@ -629,6 +714,7 @@ function showAll(){
     setActiveButton("allBtn");
 
     renderCurrentFilter();
+
 }
 
 
@@ -639,6 +725,7 @@ function showPotential(){
     setActiveButton("potentialBtn");
 
     renderCurrentFilter();
+
 }
 
 
@@ -649,6 +736,7 @@ function showWebsites(){
     setActiveButton("websiteBtn");
 
     renderCurrentFilter();
+
 }
 
 
@@ -659,6 +747,7 @@ function showContacted(){
     setActiveButton("contactedBtn");
 
     renderCurrentFilter();
+
 }
 
 
@@ -669,6 +758,7 @@ function showInterested(){
     setActiveButton("interestedBtn");
 
     renderCurrentFilter();
+
 }
 
 
@@ -679,6 +769,7 @@ function showFollowup(){
     setActiveButton("followupBtn");
 
     renderCurrentFilter();
+
 }
 
 
@@ -689,6 +780,7 @@ function showConverted(){
     setActiveButton("convertedBtn");
 
     renderCurrentFilter();
+
 }
 
 
@@ -702,9 +794,16 @@ function setActiveButton(id){
             btn.classList.remove("active")
         );
 
-    document
-        .getElementById(id)
-        .classList.add("active");
+
+    const button =
+        document.getElementById(id);
+
+    if(button){
+
+        button.classList.add("active");
+
+    }
+
 }
 
 
@@ -717,9 +816,12 @@ function exportExcel(){
         alert("Search for leads first.");
 
         return;
+
     }
 
-    let headers = [
+
+    const headers = [
+
         "Business Name",
         "Category",
         "Phone",
@@ -730,14 +832,17 @@ function exportExcel(){
         "Reviews",
         "Lead Type",
         "Sales Status"
+
     ];
+
 
     let csv =
         headers.join(",") + "\n";
 
+
     currentLeads.forEach(lead => {
 
-        let row = [
+        const row = [
 
             lead.name,
             lead.category,
@@ -747,12 +852,13 @@ function exportExcel(){
             lead.maps,
             lead.rating,
             lead.reviews,
-            lead.status,
+            lead.lead_type,
             lead.salesStatus
 
         ].map(value => {
 
-            value = String(value ?? "");
+            value =
+                String(value ?? "");
 
             value =
                 value.replace(/"/g,'""');
@@ -761,27 +867,35 @@ function exportExcel(){
 
         });
 
-        csv += row.join(",") + "\n";
+
+        csv +=
+            row.join(",") + "\n";
 
     });
 
-    let blob = new Blob(
-        ["\ufeff" + csv],
-        {
-            type:"text/csv;charset=utf-8;"
-        }
-    );
 
-    let url =
+    const blob =
+        new Blob(
+            ["\ufeff" + csv],
+            {
+                type:"text/csv;charset=utf-8;"
+            }
+        );
+
+
+    const url =
         URL.createObjectURL(blob);
 
-    let link =
+
+    const link =
         document.createElement("a");
+
 
     link.href = url;
 
     link.download =
         "lead_search_results.csv";
+
 
     document.body.appendChild(link);
 
@@ -790,6 +904,7 @@ function exportExcel(){
     document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
+
 }
 
 </script>
