@@ -1,0 +1,798 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Lead Search Engine</title>
+
+<style>
+body{
+    margin:0;
+    background:#0b1020;
+    color:#eee;
+    font:15px Arial;
+}
+
+.wrap{
+    max-width:1200px;
+    margin:auto;
+    padding:35px;
+}
+
+h1{font-size:34px}
+
+.sub{
+    color:#aab4d0;
+    margin-bottom:25px;
+}
+
+.card{
+    background:#121a2d;
+    border:1px solid #293552;
+    border-radius:14px;
+    padding:20px;
+    margin:15px 0;
+}
+
+.form{
+    display:grid;
+    grid-template-columns:1fr 1fr 100px 160px;
+    gap:10px;
+}
+
+input,select,button{
+    padding:13px;
+    border-radius:9px;
+    border:1px solid #394765;
+    background:#0d1426;
+    color:white;
+}
+
+button{
+    background:#4f7cff;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+button:hover{
+    opacity:.9;
+}
+
+.export{
+    background:#16855b;
+    margin-top:12px;
+}
+
+.stats{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+}
+
+.stat{
+    padding:12px 18px;
+    background:#121a2d;
+    border-radius:10px;
+}
+
+.stat b{
+    display:block;
+    font-size:22px;
+}
+
+.filters{
+    display:flex;
+    gap:10px;
+    margin:15px 0;
+    flex-wrap:wrap;
+}
+
+.filters button{
+    background:#1b2742;
+}
+
+.filters button.active{
+    background:#4f7cff;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:1100px;
+}
+
+th,td{
+    text-align:left;
+    padding:12px;
+    border-bottom:1px solid #293552;
+}
+
+th{
+    color:#aab4d0;
+}
+
+.potential{
+    color:#ffd166;
+}
+
+.found{
+    color:#7ee2a8;
+}
+
+.msg{
+    color:#aab4d0;
+}
+
+a{
+    color:#8eb1ff;
+}
+
+.statusSelect{
+    padding:8px;
+    border-radius:7px;
+    border:1px solid #394765;
+    background:#0d1426;
+    color:white;
+}
+
+.saved{
+    color:#7ee2a8;
+    font-size:12px;
+}
+
+@media(max-width:800px){
+    .form{
+        grid-template-columns:1fr 1fr;
+    }
+
+    button{
+        grid-column:1/-1;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+<h1>Lead Search Engine</h1>
+
+<div class="sub">
+Find businesses, identify potential leads and manage your sales follow-up.
+</div>
+
+<div class="card">
+
+<div class="form">
+
+<input
+    id="city"
+    value="Vijayawada, Andhra Pradesh"
+    placeholder="City"
+>
+
+<input
+    id="cat"
+    value="restaurants"
+    placeholder="Business category"
+>
+
+<select id="limit">
+    <option>10</option>
+    <option selected>20</option>
+    <option>30</option>
+    <option>40</option>
+    <option>50</option>
+</select>
+
+<button onclick="search()">
+    SEARCH LEADS
+</button>
+
+</div>
+
+<p id="msg" class="msg"></p>
+
+<button
+    id="exportBtn"
+    class="export"
+    onclick="exportExcel()"
+    style="display:none;"
+>
+    EXPORT TO EXCEL
+</button>
+
+</div>
+
+
+<div class="stats">
+
+<div class="stat">
+    Total
+    <b id="total">0</b>
+</div>
+
+<div class="stat">
+    Potential leads
+    <b id="pot">0</b>
+</div>
+
+<div class="stat">
+    Websites
+    <b id="web">0</b>
+</div>
+
+</div>
+
+
+<div class="filters">
+
+<button id="allBtn" onclick="showAll()">
+    ALL LEADS
+</button>
+
+<button id="potentialBtn" onclick="showPotential()">
+    POTENTIAL LEADS
+</button>
+
+<button id="websiteBtn" onclick="showWebsites()">
+    WITH WEBSITE
+</button>
+
+<button id="contactedBtn" onclick="showContacted()">
+    CONTACTED
+</button>
+
+<button id="interestedBtn" onclick="showInterested()">
+    INTERESTED
+</button>
+
+<button id="followupBtn" onclick="showFollowup()">
+    FOLLOW-UP
+</button>
+
+<button id="convertedBtn" onclick="showConverted()">
+    CONVERTED
+</button>
+
+</div>
+
+
+<div class="card" style="overflow:auto">
+
+<table>
+
+<thead>
+
+<tr>
+<th>Business</th>
+<th>Phone</th>
+<th>Address</th>
+<th>Website</th>
+<th>Rating</th>
+<th>Lead Type</th>
+<th>Sales Status</th>
+</tr>
+
+</thead>
+
+<tbody id="rows">
+
+<tr>
+<td colspan="7">
+Search to see leads.
+</td>
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+
+<script>
+
+let currentLeads = [];
+
+let currentFilter = "all";
+
+
+const e = s =>
+String(s ?? "").replace(
+    /[&<>"']/g,
+    c => ({
+        "&":"&amp;",
+        "<":"&lt;",
+        ">":"&gt;",
+        '"':"&quot;",
+        "'":"&#39;"
+    }[c])
+);
+
+
+/* LOAD SAVED STATUS */
+
+function getSavedStatus(lead){
+
+    let key =
+        "lead_status_" +
+        encodeURIComponent(
+            lead.name + "_" + lead.address
+        );
+
+    return localStorage.getItem(key)
+        || "Not Contacted";
+}
+
+
+/* SAVE STATUS */
+
+function saveStatus(index, value){
+
+    let lead = currentLeads[index];
+
+    if(!lead) return;
+
+    let key =
+        "lead_status_" +
+        encodeURIComponent(
+            lead.name + "_" + lead.address
+        );
+
+    localStorage.setItem(key, value);
+
+    lead.salesStatus = value;
+
+    document.getElementById("msg").innerHTML =
+        `Status saved: <span class="saved">${e(value)}</span>`;
+
+    renderCurrentFilter();
+}
+
+
+/* SEARCH */
+
+async function search(){
+
+    let city =
+        document.getElementById("city").value;
+
+    let category =
+        document.getElementById("cat").value;
+
+    let limit =
+        document.getElementById("limit").value;
+
+    document.getElementById("msg").textContent =
+        "Searching for real businesses...";
+
+    document.getElementById("exportBtn").style.display =
+        "none";
+
+    try{
+
+        let response = await fetch(
+            `/api/search?city=${encodeURIComponent(city)}&category=${encodeURIComponent(category)}&limit=${limit}`
+        );
+
+        let data = await response.json();
+
+        if(!data.ok){
+
+            document.getElementById("msg").textContent =
+                data.error;
+
+            return;
+        }
+
+        currentLeads = data.leads || [];
+
+        currentLeads.forEach(lead => {
+            lead.salesStatus = getSavedStatus(lead);
+        });
+
+        document.getElementById("total").textContent =
+            currentLeads.length;
+
+        document.getElementById("pot").textContent =
+            currentLeads.filter(
+                z => z.status === "Potential Lead"
+            ).length;
+
+        document.getElementById("web").textContent =
+            currentLeads.filter(
+                z => z.website
+            ).length;
+
+        document.getElementById("msg").textContent =
+            `Found ${currentLeads.length} businesses.`;
+
+        if(currentLeads.length > 0){
+
+            document.getElementById("exportBtn")
+                .style.display = "inline-block";
+
+        }
+
+        currentFilter = "all";
+
+        setActiveButton("allBtn");
+
+        renderCurrentFilter();
+
+    }
+
+    catch(error){
+
+        document.getElementById("msg").textContent =
+            "Backend connection error.";
+
+    }
+}
+
+
+/* FILTER DATA */
+
+function getFilteredLeads(){
+
+    if(currentFilter === "potential"){
+
+        return currentLeads.filter(
+            z => z.status === "Potential Lead"
+        );
+
+    }
+
+    if(currentFilter === "website"){
+
+        return currentLeads.filter(
+            z => z.website
+        );
+
+    }
+
+    if(currentFilter === "contacted"){
+
+        return currentLeads.filter(
+            z => z.salesStatus === "Contacted"
+        );
+
+    }
+
+    if(currentFilter === "interested"){
+
+        return currentLeads.filter(
+            z => z.salesStatus === "Interested"
+        );
+
+    }
+
+    if(currentFilter === "followup"){
+
+        return currentLeads.filter(
+            z => z.salesStatus === "Follow-up"
+        );
+
+    }
+
+    if(currentFilter === "converted"){
+
+        return currentLeads.filter(
+            z => z.salesStatus === "Converted"
+        );
+
+    }
+
+    return currentLeads;
+}
+
+
+/* RENDER CURRENT FILTER */
+
+function renderCurrentFilter(){
+
+    renderLeads(
+        getFilteredLeads()
+    );
+}
+
+
+/* RENDER TABLE */
+
+function renderLeads(leads){
+
+    document.getElementById("rows").innerHTML =
+
+    leads.map(lead => {
+
+        let index =
+            currentLeads.indexOf(lead);
+
+        return `
+
+        <tr>
+
+            <td>
+                <b>${e(lead.name)}</b>
+                <br>
+                <span class="msg">
+                    ${e(lead.category)}
+                </span>
+            </td>
+
+            <td>
+                ${e(lead.phone)}
+            </td>
+
+            <td>
+                ${e(lead.address)}
+            </td>
+
+            <td>
+                ${
+                    lead.website
+                    ?
+                    `<a
+                        target="_blank"
+                        href="${e(lead.website)}"
+                    >
+                        Website
+                    </a>`
+                    :
+                    "—"
+                }
+            </td>
+
+            <td>
+                ${e(lead.rating)}
+                ${lead.reviews ? `(${e(lead.reviews)})` : ""}
+            </td>
+
+            <td
+                class="${
+                    lead.status === "Potential Lead"
+                    ? "potential"
+                    : "found"
+                }"
+            >
+                ${e(lead.status)}
+            </td>
+
+            <td>
+
+                <select
+                    class="statusSelect"
+                    onchange="saveStatus(${index}, this.value)"
+                >
+
+                    <option
+                        ${lead.salesStatus === "Not Contacted" ? "selected" : ""}
+                    >
+                        Not Contacted
+                    </option>
+
+                    <option
+                        ${lead.salesStatus === "Contacted" ? "selected" : ""}
+                    >
+                        Contacted
+                    </option>
+
+                    <option
+                        ${lead.salesStatus === "Interested" ? "selected" : ""}
+                    >
+                        Interested
+                    </option>
+
+                    <option
+                        ${lead.salesStatus === "Follow-up" ? "selected" : ""}
+                    >
+                        Follow-up
+                    </option>
+
+                    <option
+                        ${lead.salesStatus === "Converted" ? "selected" : ""}
+                    >
+                        Converted
+                    </option>
+
+                </select>
+
+            </td>
+
+        </tr>
+
+        `;
+
+    }).join("")
+
+    ||
+
+    `
+    <tr>
+        <td colspan="7">
+            No leads in this category.
+        </td>
+    </tr>
+    `;
+}
+
+
+/* FILTER FUNCTIONS */
+
+function showAll(){
+
+    currentFilter = "all";
+
+    setActiveButton("allBtn");
+
+    renderCurrentFilter();
+}
+
+
+function showPotential(){
+
+    currentFilter = "potential";
+
+    setActiveButton("potentialBtn");
+
+    renderCurrentFilter();
+}
+
+
+function showWebsites(){
+
+    currentFilter = "website";
+
+    setActiveButton("websiteBtn");
+
+    renderCurrentFilter();
+}
+
+
+function showContacted(){
+
+    currentFilter = "contacted";
+
+    setActiveButton("contactedBtn");
+
+    renderCurrentFilter();
+}
+
+
+function showInterested(){
+
+    currentFilter = "interested";
+
+    setActiveButton("interestedBtn");
+
+    renderCurrentFilter();
+}
+
+
+function showFollowup(){
+
+    currentFilter = "followup";
+
+    setActiveButton("followupBtn");
+
+    renderCurrentFilter();
+}
+
+
+function showConverted(){
+
+    currentFilter = "converted";
+
+    setActiveButton("convertedBtn");
+
+    renderCurrentFilter();
+}
+
+
+/* ACTIVE BUTTON */
+
+function setActiveButton(id){
+
+    document
+        .querySelectorAll(".filters button")
+        .forEach(btn =>
+            btn.classList.remove("active")
+        );
+
+    document
+        .getElementById(id)
+        .classList.add("active");
+}
+
+
+/* EXPORT */
+
+function exportExcel(){
+
+    if(!currentLeads.length){
+
+        alert("Search for leads first.");
+
+        return;
+    }
+
+    let headers = [
+        "Business Name",
+        "Category",
+        "Phone",
+        "Address",
+        "Website",
+        "Maps",
+        "Rating",
+        "Reviews",
+        "Lead Type",
+        "Sales Status"
+    ];
+
+    let csv =
+        headers.join(",") + "\n";
+
+    currentLeads.forEach(lead => {
+
+        let row = [
+
+            lead.name,
+            lead.category,
+            lead.phone,
+            lead.address,
+            lead.website,
+            lead.maps,
+            lead.rating,
+            lead.reviews,
+            lead.status,
+            lead.salesStatus
+
+        ].map(value => {
+
+            value = String(value ?? "");
+
+            value =
+                value.replace(/"/g,'""');
+
+            return `"${value}"`;
+
+        });
+
+        csv += row.join(",") + "\n";
+
+    });
+
+    let blob = new Blob(
+        ["\ufeff" + csv],
+        {
+            type:"text/csv;charset=utf-8;"
+        }
+    );
+
+    let url =
+        URL.createObjectURL(blob);
+
+    let link =
+        document.createElement("a");
+
+    link.href = url;
+
+    link.download =
+        "lead_search_results.csv";
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+}
+
+</script>
+
+</body>
+</html>
