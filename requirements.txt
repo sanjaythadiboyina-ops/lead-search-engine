@@ -1,7 +1,8 @@
 fastapi
-uvicorn
+uvicorn[standard]
+psycopg[binary]
+PyJWT
+python-dotenv
 requests
 openpyxl
-python-dotenv
-psycopg[binary]
-python-jose[cryptography]
+pydantic

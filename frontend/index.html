@@ -2,2095 +2,2601 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lead Search Engine</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Lead Searching Engine</title>
 
 <style>
-*{
-    box-sizing:border-box;
-    margin:0;
-    padding:0;
+:root{
+  --green:#1f8a4c;
+  --dark:#166a3a;
+  --light:#e6f5ec;
+  --bg:#f7f9f8;
+  --card:#fff;
+  --text:#1c2620;
+  --muted:#6b7770;
+  --border:#e2e8e4;
+  --danger:#d9534f;
+  --shadow:0 2px 16px rgba(0,0,0,.06)
 }
+
+*{box-sizing:border-box}
 
 body{
-    font-family:Arial,Helvetica,sans-serif;
-    background:#f7fffa;
-    color:#173b2b;
+  margin:0;
+  font-family:Arial,Segoe UI,sans-serif;
+  background:var(--bg);
+  color:var(--text)
 }
 
-button,input,select{
-    font-family:inherit;
-}
+a{color:var(--dark)}
 
-/* ================= AUTH ================= */
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
 
-.auth-screen{
-    min-height:100vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:linear-gradient(135deg,#f7fffa,#e7f9ed);
-    padding:20px;
+.hidden{display:none!important}
+
+.auth-wrap{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px
 }
 
 .auth-card{
-    width:100%;
-    max-width:430px;
-    background:#fff;
-    border-radius:22px;
-    padding:38px;
-    box-shadow:0 15px 45px rgba(25,100,55,.12);
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:32px;
+  width:100%;
+  max-width:390px;
+  box-shadow:var(--shadow)
 }
 
-.logo{
-    text-align:center;
-    margin-bottom:30px;
+.auth-card h1{
+  font-size:21px;
+  margin-bottom:5px
 }
 
-.logo-icon{
-    width:58px;
-    height:58px;
-    margin:auto;
-    border-radius:16px;
-    background:#d9f7e3;
-    color:#20a65a;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:28px;
-    font-weight:bold;
+.sub,.muted{
+  color:var(--muted);
+  font-size:13px
 }
 
-.logo h1{
-    margin-top:12px;
-    font-size:25px;
+label{
+  display:block;
+  color:var(--muted);
+  font-size:13px;
+  margin:11px 0 5px
 }
 
-.logo p{
-    color:#769082;
-    margin-top:6px;
+input,select,textarea{
+  width:100%;
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:10px 12px;
+  background:#fff;
+  color:var(--text)
 }
 
-.auth-card h2{
-    margin-bottom:8px;
+textarea{
+  min-height:100px;
+  resize:vertical
 }
 
-.subtitle{
-    color:#789084;
-    margin-bottom:24px;
+input:focus,select:focus,textarea:focus{
+  outline:2px solid var(--light);
+  border-color:var(--green)
 }
 
-.input-group{
-    margin-bottom:16px;
+button{
+  border:0;
+  border-radius:8px;
+  font-weight:600
 }
 
-.input-group label{
-    display:block;
-    margin-bottom:7px;
-    font-size:14px;
-    font-weight:bold;
+.primary{
+  background:var(--green);
+  color:#fff;
+  padding:10px 16px
 }
 
-.input-group input,
-.search-input,
-select{
-    width:100%;
-    padding:13px 14px;
-    border:1px solid #d6e7dc;
-    border-radius:10px;
-    background:#fbfffc;
-    outline:none;
-    font-size:15px;
+.primary:hover{background:var(--dark)}
+
+.secondary{
+  background:#fff;
+  color:var(--dark);
+  border:1px solid var(--green);
+  padding:9px 14px
 }
 
-.input-group input:focus,
-.search-input:focus,
-select:focus{
-    border-color:#55c980;
-    box-shadow:0 0 0 3px rgba(85,201,128,.12);
+.danger{
+  background:#fff;
+  color:var(--danger);
+  border:1px solid var(--danger);
+  padding:9px 14px
 }
 
-.primary-btn{
-    width:100%;
-    padding:14px;
-    border:none;
-    border-radius:10px;
-    background:#43c878;
-    color:white;
-    font-size:15px;
-    font-weight:bold;
-    cursor:pointer;
+.link{
+  background:none;
+  color:var(--dark);
+  padding:0
 }
 
-.primary-btn:hover{
-    background:#31b968;
+.full{
+  width:100%;
+  margin-top:17px
 }
 
-.auth-switch{
-    text-align:center;
-    margin-top:20px;
-    color:#71857a;
-    font-size:14px;
-}
-
-.auth-switch button{
-    border:none;
-    background:none;
-    color:#20a65a;
-    font-weight:bold;
-    cursor:pointer;
-}
-
-.error{
-    color:#d9534f;
-    font-size:14px;
-    margin-bottom:15px;
-}
-
-.success{
-    color:#159447;
-    font-size:14px;
-    margin-bottom:15px;
-}
-
-/* ================= APP ================= */
-
-.app{
-    display:none;
-    min-height:100vh;
+.switch{
+  text-align:center;
+  margin-top:15px;
+  font-size:13px
 }
 
 .topbar{
-    height:72px;
-    background:white;
-    border-bottom:1px solid #e3eee7;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:0 32px;
-    position:sticky;
-    top:0;
-    z-index:10;
+  background:#fff;
+  border-bottom:1px solid var(--border);
+  padding:14px 24px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center
 }
 
-.brand{
-    display:flex;
-    align-items:center;
-    gap:12px;
-}
+.brand{font-weight:700}
+.brand span{color:var(--green)}
 
-.brand-icon{
-    width:42px;
-    height:42px;
-    border-radius:11px;
-    background:#d9f7e3;
-    color:#20a65a;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-weight:bold;
+.user-info{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-size:13px;
+  color:var(--muted)
 }
-
-.brand h2{
-    font-size:20px;
-}
-
-.user-area{
-    display:flex;
-    align-items:center;
-    gap:15px;
-}
-
-.user-email{
-    color:#65786d;
-    font-size:14px;
-}
-
-.logout-btn,
-.export-btn{
-    border:1px solid #cce6d5;
-    background:white;
-    color:#239a57;
-    padding:9px 15px;
-    border-radius:9px;
-    cursor:pointer;
-    font-weight:bold;
-}
-
-.logout-btn:hover,
-.export-btn:hover{
-    background:#effbf3;
-}
-
-/* ================= MAIN ================= */
 
 .container{
-    max-width:1400px;
-    margin:auto;
-    padding:30px;
+  max-width:1400px;
+  margin:auto;
+  padding:22px
 }
 
-.welcome{
-    margin-bottom:25px;
+.card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:20px;
+  margin-bottom:18px;
+  box-shadow:0 1px 4px rgba(0,0,0,.02)
 }
 
-.welcome h1{
-    font-size:30px;
-}
-
-.welcome p{
-    margin-top:7px;
-    color:#789084;
-}
-
-/* ================= STATS ================= */
-
-.stats{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:18px;
-    margin-bottom:25px;
-}
-
-.stat-card{
-    background:white;
-    border:1px solid #e3eee7;
-    border-radius:16px;
-    padding:22px;
-    box-shadow:0 5px 18px rgba(35,100,55,.05);
-}
-
-.stat-title{
-    color:#789084;
-    font-size:14px;
-}
-
-.stat-number{
-    font-size:29px;
-    font-weight:bold;
-    margin-top:10px;
-    color:#1e9d56;
-}
-
-/* ================= SEARCH ================= */
-
-.search-card{
-    background:white;
-    border:1px solid #e3eee7;
-    border-radius:16px;
-    padding:25px;
-    margin-bottom:20px;
-}
-
-.search-card h2{
-    margin-bottom:20px;
+.card h2{
+  font-size:16px;
+  margin-bottom:14px
 }
 
 .search-grid{
-    display:grid;
-    grid-template-columns:2fr 1.5fr 110px 150px;
-    gap:12px;
+  display:grid;
+  grid-template-columns:1.4fr 1.4fr 1.4fr .7fr auto;
+  gap:12px;
+  align-items:end
 }
 
-.search-btn{
-    border:none;
-    border-radius:10px;
-    background:#43c878;
-    color:white;
-    font-weight:bold;
-    cursor:pointer;
+.search-grid .field{min-width:0}
+
+.mode-row,.check-row{
+  display:flex;
+  gap:18px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-top:12px
 }
 
-.search-btn:hover{
-    background:#31b968;
+.check-row label,.mode-row label{
+  margin:0;
+  color:var(--text);
+  display:flex;
+  gap:7px;
+  align-items:center
 }
 
-.search-btn:disabled{
-    opacity:.6;
-    cursor:not-allowed;
-}
-
-/* ================= TOOLBAR ================= */
+.check-row input,.mode-row input{width:auto}
 
 .toolbar{
-    display:flex;
-    justify-content:flex-end;
-    margin-bottom:15px;
+  display:flex;
+  gap:9px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-bottom:12px
 }
 
-.export-btn{
-    background:#e5f9ec;
-    border-color:#bce7ca;
+.toolbar h2{margin:0}
+
+.status{
+  font-size:13px;
+  margin-top:10px
 }
 
-/* ================= FILTERS ================= */
+.error{color:var(--danger)}
+.info{color:var(--muted)}
 
-.filters{
-    display:flex;
-    flex-wrap:wrap;
-    gap:9px;
-    margin-bottom:18px;
-}
-
-.filter-btn{
-    padding:9px 14px;
-    border-radius:20px;
-    border:1px solid #d4e9dc;
-    background:white;
-    color:#557164;
-    cursor:pointer;
-    font-size:13px;
-}
-
-.filter-btn.active,
-.filter-btn:hover{
-    background:#dcf8e6;
-    color:#168c4a;
-    border-color:#aee5bf;
-}
-
-/* ================= TABLE ================= */
-
-.table-card{
-    background:white;
-    border:1px solid #e3eee7;
-    border-radius:16px;
-    overflow:hidden;
-}
-
-.table-header{
-    padding:20px 22px;
-    border-bottom:1px solid #e6eee9;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-}
-
-.table-wrapper{
-    overflow-x:auto;
+.table-scroll{
+  overflow:auto;
+  max-height:650px
 }
 
 table{
-    width:100%;
-    border-collapse:collapse;
-    min-width:1050px;
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+  min-width:900px
+}
+
+th,td{
+  text-align:left;
+  padding:9px 8px;
+  border-bottom:1px solid var(--border);
+  vertical-align:top
 }
 
 th{
-    text-align:left;
-    padding:14px 18px;
-    background:#f5fbf7;
-    color:#60776a;
-    font-size:13px;
-}
-
-td{
-    padding:15px 18px;
-    border-top:1px solid #edf3ef;
-    font-size:14px;
-    vertical-align:middle;
-}
-
-.business-name{
-    font-weight:bold;
-    margin-bottom:5px;
-}
-
-.phone{
-    color:#2b9e5c;
-}
-
-.website-link,
-.maps-link{
-    color:#168c4a;
-    text-decoration:none;
-}
-
-.website-link:hover,
-.maps-link:hover{
-    text-decoration:underline;
+  color:var(--muted);
+  background:var(--light);
+  position:sticky;
+  top:0;
+  z-index:1
 }
 
 .badge{
-    display:inline-block;
-    padding:6px 9px;
-    border-radius:20px;
-    font-size:12px;
-    font-weight:bold;
+  display:inline-block;
+  border-radius:20px;
+  padding:3px 8px;
+  font-size:11px;
+  font-weight:700
 }
 
-.badge-lead{
-    background:#fff5d9;
-    color:#a16c00;
+.high{
+  background:#e3f5e8;
+  color:#1f8a4c
 }
 
-.badge-business{
-    background:#dcf8e6;
-    color:#168c4a;
+.medium{
+  background:#fff4e0;
+  color:#b8790a
 }
 
-.status-select{
-    padding:7px 9px;
-    border-radius:8px;
-    border:1px solid #d5e7dc;
-    background:white;
-    font-size:12px;
-    cursor:pointer;
+.low{
+  background:#fdeaea;
+  color:#c0392b
 }
 
-.status-select:disabled{
-    opacity:.5;
-    cursor:not-allowed;
+.needs{
+  background:#eef0f5;
+  color:#555f75
 }
 
-.loading,
+.filters{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:10px
+}
+
+.filters .check{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:13px
+}
+
+.filters .check input{width:auto}
+
 .empty{
-    text-align:center;
-    padding:55px;
-    color:#789084;
+  text-align:center;
+  padding:25px;
+  color:var(--muted)
 }
 
-.loading{
-    font-size:16px;
+.groups{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap
 }
 
-/* ================= RESPONSIVE ================= */
+.chip{
+  background:var(--light);
+  color:var(--dark);
+  border:1px solid transparent;
+  padding:7px 12px;
+  border-radius:20px;
+  font-size:12px
+}
 
-@media(max-width:900px){
+.chip.active{border-color:var(--green)}
 
-    .stats{
-        grid-template-columns:repeat(2,1fr);
-    }
+.toast{
+  position:fixed;
+  right:20px;
+  bottom:20px;
+  background:#263029;
+  color:#fff;
+  padding:12px 16px;
+  border-radius:8px;
+  z-index:50;
+  max-width:360px
+}
 
-    .search-grid{
-        grid-template-columns:1fr 1fr;
-    }
+.toast.err{background:var(--danger)}
 
-    .search-btn{
-        padding:13px;
-    }
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.45);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  z-index:40
+}
+
+.modal-box{
+  background:#fff;
+  border-radius:12px;
+  max-width:760px;
+  width:100%;
+  max-height:90vh;
+  overflow:auto;
+  padding:22px
+}
+
+.detail-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px
+}
+
+.detail{
+  border:1px solid var(--border);
+  padding:10px;
+  border-radius:8px
+}
+
+.detail b{
+  display:block;
+  font-size:11px;
+  color:var(--muted);
+  margin-bottom:4px
+}
+
+.actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin:14px 0
+}
+
+.spinner{
+  display:inline-block;
+  width:13px;
+  height:13px;
+  border:2px solid #cfe8da;
+  border-top-color:var(--green);
+  border-radius:50%;
+  animation:spin .7s linear infinite;
+  vertical-align:-2px;
+  margin-right:5px
+}
+
+@keyframes spin{
+  to{transform:rotate(360deg)}
+}
+
+@media(max-width:950px){
+  .search-grid{
+    grid-template-columns:1fr 1fr
+  }
+
+  .filters{
+    grid-template-columns:repeat(2,1fr)
+  }
 }
 
 @media(max-width:600px){
+  .search-grid,.filters,.detail-grid{
+    grid-template-columns:1fr
+  }
 
-    .topbar{
-        padding:0 15px;
-    }
+  .topbar{padding:12px}
+  .container{padding:12px}
 
-    .brand h2{
-        font-size:17px;
-    }
-
-    .user-email{
-        display:none;
-    }
-
-    .container{
-        padding:18px;
-    }
-
-    .stats{
-        grid-template-columns:1fr;
-    }
-
-    .search-grid{
-        grid-template-columns:1fr;
-    }
-
-    .auth-card{
-        padding:25px;
-    }
-
-    .welcome h1{
-        font-size:25px;
-    }
+  .user-info span{display:none}
 }
 </style>
 </head>
 
 <body>
 
-<!-- ================= AUTH ================= -->
+<div id="authScreen" class="auth-wrap">
+  <div class="auth-card">
 
-<div class="auth-screen" id="authScreen">
+    <h1>Lead Searching Engine</h1>
+    <p class="sub" id="authSubtitle">
+      Log in to search real business leads.
+    </p>
 
-    <div class="auth-card">
+    <div id="loginForm">
 
-        <div class="logo">
-            <div class="logo-icon">L</div>
-            <h1>Lead Search Engine</h1>
-            <p>Find real business leads faster</p>
-        </div>
+      <label>Email</label>
+      <input id="loginEmail" type="email" placeholder="you@example.com">
 
-        <!-- LOGIN -->
+      <label>Password</label>
+      <input id="loginPassword" type="password" placeholder="Password">
 
-        <div id="loginBox">
+      <button class="primary full" onclick="handleLogin()">
+        Log In
+      </button>
 
-            <h2>Welcome back 👋</h2>
-
-            <p class="subtitle">
-                Login to your account
-            </p>
-
-            <div id="loginMessage"></div>
-
-            <div class="input-group">
-                <label>Email</label>
-                <input
-                    type="email"
-                    id="loginEmail"
-                    placeholder="you@example.com"
-                >
-            </div>
-
-            <div class="input-group">
-                <label>Password</label>
-                <input
-                    type="password"
-                    id="loginPassword"
-                    placeholder="Enter password"
-                >
-            </div>
-
-            <button
-                class="primary-btn"
-                id="loginBtn"
-                onclick="login()"
-            >
-                LOGIN
-            </button>
-
-            <div class="auth-switch">
-                Don't have an account?
-                <button onclick="showSignup()">
-                    Create account
-                </button>
-            </div>
-
-        </div>
-
-        <!-- SIGNUP -->
-
-        <div id="signupBox" style="display:none;">
-
-            <h2>Create account 🚀</h2>
-
-            <p class="subtitle">
-                Start finding business leads
-            </p>
-
-            <div id="signupMessage"></div>
-
-            <div class="input-group">
-                <label>Email</label>
-                <input
-                    type="email"
-                    id="signupEmail"
-                    placeholder="you@example.com"
-                >
-            </div>
-
-            <div class="input-group">
-                <label>Password</label>
-                <input
-                    type="password"
-                    id="signupPassword"
-                    placeholder="Minimum 6 characters"
-                >
-            </div>
-
-            <button
-                class="primary-btn"
-                id="signupBtn"
-                onclick="signup()"
-            >
-                CREATE ACCOUNT
-            </button>
-
-            <div class="auth-switch">
-                Already have an account?
-                <button onclick="showLogin()">
-                    Login
-                </button>
-            </div>
-
-        </div>
+      <div class="switch">
+        Don't have an account?
+        <button class="link" onclick="showSignup()">Sign up</button>
+      </div>
 
     </div>
+
+    <div id="signupForm" class="hidden">
+
+      <label>Name</label>
+      <input id="signupName" placeholder="Your name">
+
+      <label>Email</label>
+      <input id="signupEmail" type="email" placeholder="you@example.com">
+
+      <label>Password</label>
+      <input id="signupPassword" type="password" placeholder="At least 6 characters">
+
+      <button class="primary full" onclick="handleSignup()">
+        Create Account
+      </button>
+
+      <div class="switch">
+        Already have an account?
+        <button class="link" onclick="showLogin()">Log in</button>
+      </div>
+
+    </div>
+
+    <div id="authError" class="status error hidden"></div>
+
+  </div>
 </div>
 
 
-<!-- ================= APP ================= -->
+<div id="appScreen" class="hidden">
 
-<div class="app" id="app">
+  <div class="topbar">
 
-    <header class="topbar">
+    <div class="brand">
+      Lead <span>Search</span> Engine
+    </div>
 
-        <div class="brand">
+    <div class="user-info">
+      <span id="userName"></span>
+      <button class="secondary" onclick="handleLogout()">Log out</button>
+    </div>
 
-            <div class="brand-icon">
-                L
-            </div>
+  </div>
 
-            <h2>
-                Lead Search Engine
-            </h2>
 
+  <div class="container">
+
+    <!-- SEARCH -->
+    <div class="card">
+
+      <h2>Search for Leads</h2>
+
+      <div class="mode-row">
+
+        <label>
+          <input
+            type="radio"
+            name="searchMode"
+            value="category"
+            checked
+            onchange="changeMode()"
+          >
+          Category
+        </label>
+
+        <label>
+          <input
+            type="radio"
+            name="searchMode"
+            value="keyword"
+            onchange="changeMode()"
+          >
+          Custom Keyword
+        </label>
+
+      </div>
+
+
+      <div class="search-grid">
+
+        <div class="field">
+          <label>City</label>
+          <input id="cityInput" placeholder="e.g. Ongole">
         </div>
 
-        <div class="user-area">
+        <div class="field" id="categoryField">
 
-            <span
-                class="user-email"
-                id="userEmail"
-            ></span>
+          <label>Category</label>
 
-            <button
-                class="logout-btn"
-                onclick="logout()"
-            >
-                Logout
-            </button>
-
-        </div>
-
-    </header>
-
-
-    <main class="container">
-
-        <div class="welcome">
-
-            <h1>
-                Lead Dashboard
-            </h1>
-
-            <p>
-                Search real businesses and manage your sales leads.
-            </p>
-
-        </div>
-
-
-        <!-- STATS -->
-
-        <div class="stats">
-
-            <div class="stat-card">
-                <div class="stat-title">
-                    Total Leads
-                </div>
-                <div
-                    class="stat-number"
-                    id="totalStat"
-                >
-                    0
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-title">
-                    Potential Leads
-                </div>
-                <div
-                    class="stat-number"
-                    id="potentialStat"
-                >
-                    0
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-title">
-                    With Website
-                </div>
-                <div
-                    class="stat-number"
-                    id="websiteStat"
-                >
-                    0
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-title">
-                    Converted
-                </div>
-                <div
-                    class="stat-number"
-                    id="convertedStat"
-                >
-                    0
-                </div>
-            </div>
+          <select id="categoryInput"></select>
 
         </div>
 
 
-        <!-- SEARCH -->
+        <div class="field hidden" id="keywordField">
 
-        <div class="search-card">
+          <label>Custom Keyword</label>
 
-            <h2>
-                🔎 Search Business Leads
-            </h2>
+          <input
+            id="keywordInput"
+            placeholder="e.g. digital marketing agencies"
+          >
 
-            <div class="search-grid">
+        </div>
 
+
+        <div class="field">
+
+          <label>Leads</label>
+
+          <input
+            id="limitInput"
+            type="number"
+            min="1"
+            max="100"
+            value="10"
+          >
+
+        </div>
+
+
+        <div>
+          <button class="primary" onclick="handleSearch()">
+            Search
+          </button>
+        </div>
+
+      </div>
+
+
+      <div class="check-row">
+
+        <label>
+          <input id="cityWide" type="checkbox">
+          Broader city coverage
+        </label>
+
+        <label>
+          <input id="enrich" type="checkbox">
+          Enrich permitted public websites
+        </label>
+
+      </div>
+
+
+      <div id="searchStatus" class="status info hidden"></div>
+
+    </div>
+
+
+    <!-- SEARCH RESULTS -->
+    <div class="card">
+
+      <div class="toolbar">
+
+        <h2>Search Results</h2>
+
+        <span class="muted" id="resultSummary"></span>
+
+        <span class="muted" id="selectedCount"></span>
+
+      </div>
+
+
+      <div class="toolbar">
+
+        <button class="secondary" onclick="toggleSelectAll()">
+          Select all
+        </button>
+
+        <button class="secondary" onclick="addSelectedToGroup()">
+          Add Selected to Group
+        </button>
+
+        <button class="secondary" onclick="exportExcel()">
+          Export All to Excel
+        </button>
+
+      </div>
+
+
+      <div class="table-scroll">
+
+        <table>
+
+          <thead>
+
+            <tr>
+              <th>
                 <input
-                    class="search-input"
-                    id="city"
-                    value="Vijayawada, Andhra Pradesh"
-                    placeholder="City"
+                  id="selectAll"
+                  type="checkbox"
+                  onchange="setAll(this.checked)"
                 >
+              </th>
 
-                <input
-                    class="search-input"
-                    id="category"
-                    value="restaurants"
-                    placeholder="Category"
-                >
+              <th>Business</th>
+              <th>Location</th>
+              <th>Contact</th>
+              <th>Website</th>
+              <th>Rating</th>
+              <th>Score</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
 
-                <select id="limit">
-                    <option value="10">10</option>
-                    <option value="20" selected>20</option>
-                    <option value="30">30</option>
-                    <option value="40">40</option>
-                    <option value="50">50</option>
-                </select>
+          </thead>
 
-                <button
-                    class="search-btn"
-                    id="searchBtn"
-                    onclick="searchLeads()"
-                >
-                    SEARCH LEADS
-                </button>
+          <tbody id="resultsBody"></tbody>
 
-            </div>
+        </table>
 
-            <div id="searchMessage"></div>
-
-        </div>
+      </div>
 
 
-        <!-- EXPORT -->
+      <div id="resultsEmpty" class="empty">
+        No results yet. Run a search above.
+      </div>
+
+    </div>
+
+
+    <!-- SAVED LEADS -->
+    <div class="card">
+
+      <div class="toolbar">
+
+        <h2>Saved Leads</h2>
+
+        <span class="muted" id="savedSummary"></span>
+
+        <button class="secondary" onclick="loadSavedLeads()">
+          Refresh
+        </button>
+
+        <button class="secondary" onclick="exportExcel()">
+          Export Excel
+        </button>
+
+      </div>
+
+
+      <div class="filters">
+
+        <label class="check">
+          <input id="fWebsite" type="checkbox">
+          Website
+        </label>
+
+        <label class="check">
+          <input id="fPhone" type="checkbox">
+          Phone
+        </label>
+
+        <label class="check">
+          <input id="fEmail" type="checkbox">
+          Email
+        </label>
+
+        <label class="check">
+          <input id="fSocial" type="checkbox">
+          Social
+        </label>
+
+        <input
+          id="fScore"
+          type="number"
+          min="0"
+          max="100"
+          placeholder="Min score"
+        >
+
+        <select id="fType">
+          <option value="">Any type</option>
+          <option>High Potential</option>
+          <option>Medium Potential</option>
+          <option>Low Potential</option>
+          <option>Needs More Information</option>
+        </select>
+
+        <input
+          id="fRating"
+          type="number"
+          min="0"
+          max="5"
+          step="0.1"
+          placeholder="Min rating"
+        >
+
+        <select id="fCategory">
+          <option value="">Any category</option>
+        </select>
+
+        <input id="fCity" placeholder="City">
+
+        <input id="fSource" placeholder="Source">
+
+        <select id="fStatus">
+          <option value="">Any status</option>
+          <option>Not Contacted</option>
+          <option>Contacted</option>
+          <option>Interested</option>
+          <option>Follow-up</option>
+          <option>Converted</option>
+        </select>
+
+      </div>
+
+
+      <div class="toolbar" style="margin-top:12px">
+
+        <button class="primary" onclick="loadSavedLeads()">
+          Apply Filters
+        </button>
+
+        <button class="secondary" onclick="clearFilters()">
+          Clear Filters
+        </button>
+
+      </div>
+
+
+      <div class="table-scroll">
+
+        <table>
+
+          <thead>
+
+            <tr>
+              <th>Business</th>
+              <th>City</th>
+              <th>Contact</th>
+              <th>Website</th>
+              <th>Score</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Source</th>
+              <th>Actions</th>
+            </tr>
+
+          </thead>
+
+          <tbody id="savedBody"></tbody>
+
+        </table>
+
+      </div>
+
+
+      <div id="savedEmpty" class="empty hidden">
+        No saved leads match these filters.
+      </div>
+
+    </div>
+
+
+    <!-- GROUPS -->
+    <div class="card">
+
+      <h2>Groups</h2>
+
+      <div class="toolbar">
+
+        <input
+          id="newGroup"
+          placeholder="New group name"
+          style="max-width:260px"
+        >
+
+        <button class="secondary" onclick="createGroup()">
+          Create Group
+        </button>
+
+      </div>
+
+
+      <div id="groupsRow" class="groups"></div>
+
+
+      <div
+        id="groupLeadsWrap"
+        class="hidden"
+        style="margin-top:15px"
+      >
 
         <div class="toolbar">
 
-            <button
-                class="export-btn"
-                onclick="exportExcel()"
-            >
-                📊 EXPORT EXCEL
-            </button>
+          <strong id="groupTitle"></strong>
+
+          <button class="secondary" onclick="closeGroup()">
+            Close
+          </button>
 
         </div>
 
 
-        <!-- FILTERS -->
+        <div class="table-scroll">
 
-        <div class="filters">
+          <table>
 
-            <button
-                class="filter-btn active"
-                onclick="setFilter('ALL',this)"
-            >
-                ALL LEADS
-            </button>
+            <thead>
 
-            <button
-                class="filter-btn"
-                onclick="setFilter('Potential Lead',this)"
-            >
-                POTENTIAL
-            </button>
+              <tr>
+                <th>Business</th>
+                <th>City</th>
+                <th>Phone</th>
+                <th>Website</th>
+                <th>Status</th>
+              </tr>
 
-            <button
-                class="filter-btn"
-                onclick="setFilter('Business Found',this)"
-            >
-                WITH WEBSITE
-            </button>
+            </thead>
 
-            <button
-                class="filter-btn"
-                onclick="setFilter('Contacted',this)"
-            >
-                CONTACTED
-            </button>
+            <tbody id="groupBody"></tbody>
 
-            <button
-                class="filter-btn"
-                onclick="setFilter('Interested',this)"
-            >
-                INTERESTED
-            </button>
-
-            <button
-                class="filter-btn"
-                onclick="setFilter('Follow-up',this)"
-            >
-                FOLLOW-UP
-            </button>
-
-            <button
-                class="filter-btn"
-                onclick="setFilter('Converted',this)"
-            >
-                CONVERTED
-            </button>
+          </table>
 
         </div>
 
+      </div>
 
-        <!-- TABLE -->
+    </div>
 
-        <div class="table-card">
 
-            <div class="table-header">
+    <!-- SEARCH HISTORY -->
+    <div class="card">
 
-                <h2>
-                    Your Leads
-                </h2>
+      <h2>Search History</h2>
 
-                <span id="resultCount">
-                    0 leads
-                </span>
+      <div class="table-scroll">
 
-            </div>
+        <table>
 
-            <div
-                class="table-wrapper"
-                id="tableContainer"
-            >
+          <thead>
 
-                <div class="empty">
-                    Search for a city and category
-                    to find leads.
-                </div>
+            <tr>
+              <th>City</th>
+              <th>Search</th>
+              <th>Coverage</th>
+              <th>Results</th>
+              <th>Date</th>
+            </tr>
 
-            </div>
+          </thead>
 
-        </div>
+          <tbody id="historyBody"></tbody>
 
-    </main>
+        </table>
+
+      </div>
+
+    </div>
+
+  </div>
 
 </div>
+
+
+<!-- DETAIL MODAL -->
+<div
+  id="detailModal"
+  class="modal hidden"
+  onclick="if(event.target===this)closeDetail()"
+>
+
+  <div class="modal-box">
+
+    <div class="toolbar">
+
+      <h2 id="detailTitle">Lead Details</h2>
+
+      <button class="secondary" onclick="closeDetail()">
+        Close
+      </button>
+
+    </div>
+
+    <div id="detailContent"></div>
+
+  </div>
+
+</div>
+
+
+<div id="toast" class="toast hidden"></div>
 
 
 <script>
 
-/* =====================================================
-   CONFIG
-===================================================== */
+const API_BASE="";
 
-const API = window.location.origin;
+const CATEGORIES=[
+  "Restaurant",
+  "Cafe",
+  "Bakery",
+  "Bar",
+  "Gym",
+  "Salon",
+  "Dentist",
+  "Clinic",
+  "Pharmacy",
+  "Hotel",
+  "Real Estate",
+  "Supermarket",
+  "Jewellery",
+  "Furniture",
+  "Car Repair",
+  "Travel Agency",
+  "Photography",
+  "Event Management",
+  "Interior Design",
+  "Boutique"
+];
 
-let token = localStorage.getItem("lead_token");
+const STATUSES=[
+  "Not Contacted",
+  "Contacted",
+  "Interested",
+  "Follow-up",
+  "Converted"
+];
 
-let currentLeads = [];
+let token=localStorage.getItem("lse_token")||null;
+let currentUser=null;
+let currentResults=[];
+let savedLeads=[];
+let groups=[];
+let toastTimer=null;
 
-let currentFilter = "ALL";
 
+/* HELPERS */
 
-/* =====================================================
-   MESSAGE HELPER
-===================================================== */
+const $=id=>document.getElementById(id);
 
-function getErrorMessage(error){
+function esc(v){
+  return String(v??"").replace(
+    /[&<>"']/g,
+    c=>({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#39;"
+    }[c])
+  );
+}
 
-    if(!error){
-        return "Something went wrong.";
-    }
-
-    if(typeof error === "string"){
-        return error;
-    }
-
-    if(error.message){
-        return error.message;
-    }
-
-    return "Something went wrong. Please try again.";
+function na(v){
+  return v
+    ? esc(v)
+    : '<span class="muted">Not available</span>';
 }
 
 
-/* =====================================================
-   AUTH
-===================================================== */
+/* API */
+
+async function apiFetch(path,opt={}){
+
+  const h={...(opt.headers||{})};
+
+  h["Content-Type"]="application/json";
+
+  if(token){
+    h.Authorization="Bearer "+token;
+  }
+
+  let r;
+
+  try{
+
+    r=await fetch(
+      API_BASE+path,
+      {
+        ...opt,
+        headers:h
+      }
+    );
+
+  }catch(e){
+
+    throw Error(
+      "Cannot reach the server. Please check that the backend is running."
+    );
+
+  }
+
+  let d=null;
+
+  try{
+    d=await r.json();
+  }catch(e){}
+
+  if(!r.ok){
+
+    if(r.status===401){
+
+      token=null;
+      localStorage.removeItem("lse_token");
+      showAuth();
+
+    }
+
+    throw Error(
+      d?.detail || "Request failed."
+    );
+
+  }
+
+  return d;
+}
+
+
+/* AUTH */
+
+function showAuth(){
+
+  $("authScreen").classList.remove("hidden");
+  $("appScreen").classList.add("hidden");
+
+}
+
+function showApp(){
+
+  $("authScreen").classList.add("hidden");
+  $("appScreen").classList.remove("hidden");
+
+  loadGroups();
+  loadHistory();
+  loadSavedLeads();
+
+}
 
 function showLogin(){
 
-    document.getElementById("loginBox").style.display="block";
+  $("loginForm").classList.remove("hidden");
+  $("signupForm").classList.add("hidden");
 
-    document.getElementById("signupBox").style.display="none";
+  $("authSubtitle").textContent=
+    "Log in to search real business leads.";
+
+  $("authError").classList.add("hidden");
 
 }
 
 function showSignup(){
 
-    document.getElementById("loginBox").style.display="none";
+  $("loginForm").classList.add("hidden");
+  $("signupForm").classList.remove("hidden");
 
-    document.getElementById("signupBox").style.display="block";
+  $("authSubtitle").textContent=
+    "Create an account to get started.";
+
+  $("authError").classList.add("hidden");
+
+}
+
+function authError(m){
+
+  $("authError").textContent=m;
+  $("authError").classList.remove("hidden");
 
 }
 
 
-/* =====================================================
-   LOGIN
-===================================================== */
+async function handleSignup(){
 
-async function login(){
+  const name=$("signupName").value.trim();
+  const email=$("signupEmail").value.trim();
+  const password=$("signupPassword").value;
 
-    const email =
-        document.getElementById("loginEmail").value.trim();
+  if(!email||!password){
 
-    const password =
-        document.getElementById("loginPassword").value;
-
-    const message =
-        document.getElementById("loginMessage");
-
-    const button =
-        document.getElementById("loginBtn");
-
-
-    if(!email || !password){
-
-        message.innerHTML =
-            '<div class="error">Enter email and password.</div>';
-
-        return;
-    }
-
-
-    button.disabled=true;
-    button.textContent="LOGGING IN...";
-
-
-    try{
-
-        const response =
-            await fetch(`${API}/api/login`,{
-
-                method:"POST",
-
-                headers:{
-                    "Content-Type":"application/json"
-                },
-
-                body:JSON.stringify({
-                    email,
-                    password
-                })
-
-            });
-
-
-        const data =
-            await response.json();
-
-
-        if(!response.ok){
-
-            throw new Error(
-                typeof data.detail === "string"
-                    ? data.detail
-                    : "Login failed"
-            );
-
-        }
-
-
-        token=data.token;
-
-        localStorage.setItem(
-            "lead_token",
-            token
-        );
-
-
-        startApp(data.user);
-
-
-    }catch(error){
-
-        message.innerHTML =
-            `<div class="error">${getErrorMessage(error)}</div>`;
-
-    }finally{
-
-        button.disabled=false;
-        button.textContent="LOGIN";
-
-    }
-
-}
-
-
-/* =====================================================
-   SIGNUP
-===================================================== */
-
-async function signup(){
-
-    const email =
-        document.getElementById("signupEmail").value.trim();
-
-    const password =
-        document.getElementById("signupPassword").value;
-
-    const message =
-        document.getElementById("signupMessage");
-
-    const button =
-        document.getElementById("signupBtn");
-
-
-    if(!email || !password){
-
-        message.innerHTML =
-            '<div class="error">Enter email and password.</div>';
-
-        return;
-    }
-
-
-    if(password.length<6){
-
-        message.innerHTML =
-            '<div class="error">Password must be at least 6 characters.</div>';
-
-        return;
-    }
-
-
-    button.disabled=true;
-    button.textContent="CREATING...";
-
-
-    try{
-
-        const response =
-            await fetch(`${API}/api/signup`,{
-
-                method:"POST",
-
-                headers:{
-                    "Content-Type":"application/json"
-                },
-
-                body:JSON.stringify({
-                    email,
-                    password
-                })
-
-            });
-
-
-        const data =
-            await response.json();
-
-
-        if(!response.ok){
-
-            throw new Error(
-                typeof data.detail === "string"
-                    ? data.detail
-                    : "Signup failed"
-            );
-
-        }
-
-
-        token=data.token;
-
-        localStorage.setItem(
-            "lead_token",
-            token
-        );
-
-
-        startApp(data.user);
-
-
-    }catch(error){
-
-        message.innerHTML =
-            `<div class="error">${getErrorMessage(error)}</div>`;
-
-    }finally{
-
-        button.disabled=false;
-        button.textContent="CREATE ACCOUNT";
-
-    }
-
-}
-
-
-/* =====================================================
-   START APP
-===================================================== */
-
-function startApp(user){
-
-    document.getElementById("authScreen").style.display="none";
-
-    document.getElementById("app").style.display="block";
-
-    document.getElementById("userEmail").textContent =
-        user.email || "";
-
-    loadLeads();
-
-}
-
-
-/* =====================================================
-   LOGOUT
-===================================================== */
-
-function logout(){
-
-    localStorage.removeItem("lead_token");
-
-    token=null;
-
-    currentLeads=[];
-
-    document.getElementById("app").style.display="none";
-
-    document.getElementById("authScreen").style.display="flex";
-
-    showLogin();
-
-}
-
-
-/* =====================================================
-   AUTH HEADERS
-===================================================== */
-
-function authHeaders(){
-
-    return {
-        "Authorization":`Bearer ${token}`
-    };
-
-}
-
-
-/* =====================================================
-   LOAD LEADS
-===================================================== */
-
-async function loadLeads(){
-
-    if(!token){
-        return;
-    }
-
-
-    try{
-
-        const response =
-            await fetch(`${API}/api/leads`,{
-
-                headers:authHeaders()
-
-            });
-
-
-        if(response.status===401){
-
-            logout();
-            return;
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        if(!response.ok){
-
-            throw new Error(
-                typeof data.detail==="string"
-                    ? data.detail
-                    : "Could not load leads"
-            );
-
-        }
-
-
-        currentLeads =
-            Array.isArray(data.leads)
-                ? data.leads
-                : [];
-
-
-        updateStats();
-
-        renderLeads();
-
-
-    }catch(error){
-
-        console.error(
-            "Load leads error:",
-            error
-        );
-
-    }
-
-}
-
-
-/* =====================================================
-   SEARCH
-===================================================== */
-
-async function searchLeads(){
-
-    const city =
-        document.getElementById("city").value.trim();
-
-    const category =
-        document.getElementById("category").value.trim();
-
-    const limit =
-        document.getElementById("limit").value;
-
-    const message =
-        document.getElementById("searchMessage");
-
-    const button =
-        document.getElementById("searchBtn");
-
-
-    if(!city || !category){
-
-        message.innerHTML =
-            '<div class="error">Enter city and category.</div>';
-
-        return;
-    }
-
-
-    button.disabled=true;
-    button.textContent="SEARCHING...";
-
-
-    document.getElementById("tableContainer").innerHTML =
-        '<div class="loading">🔎 Searching real businesses...</div>';
-
-    message.innerHTML="";
-
-
-    try{
-
-        const url =
-            `${API}/api/search?city=${encodeURIComponent(city)}&category=${encodeURIComponent(category)}&limit=${encodeURIComponent(limit)}`;
-
-
-        const response =
-            await fetch(url,{
-
-                headers:authHeaders()
-
-            });
-
-
-        if(response.status===401){
-
-            logout();
-            return;
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        if(!response.ok){
-
-            throw new Error(
-                typeof data.detail==="string"
-                    ? data.detail
-                    : "Search failed"
-            );
-
-        }
-
-
-        /*
-         IMPORTANT:
-         Search result may sometimes not contain database ID.
-         We therefore reload the user's saved leads after search.
-         This guarantees that status updates use real database IDs.
-        */
-
-        await loadLeads();
-
-
-        message.innerHTML =
-            `<div class="success">${Number(data.total)||0} leads found.</div>`;
-
-
-    }catch(error){
-
-        const errorMessage =
-            getErrorMessage(error);
-
-        document.getElementById("tableContainer").innerHTML =
-            `<div class="empty">${escapeHtml(errorMessage)}</div>`;
-
-        message.innerHTML =
-            `<div class="error">${escapeHtml(errorMessage)}</div>`;
-
-    }finally{
-
-        button.disabled=false;
-        button.textContent="SEARCH LEADS";
-
-    }
-
-}
-
-
-/* =====================================================
-   STATS
-===================================================== */
-
-function updateStats(){
-
-    const total =
-        currentLeads.length;
-
-
-    const potential =
-        currentLeads.filter(
-            lead =>
-                lead.lead_type==="Potential Lead"
-        ).length;
-
-
-    const websites =
-        currentLeads.filter(
-            lead =>
-                !!lead.website
-        ).length;
-
-
-    const converted =
-        currentLeads.filter(
-            lead =>
-                lead.status==="Converted"
-        ).length;
-
-
-    document.getElementById("totalStat").textContent=total;
-
-    document.getElementById("potentialStat").textContent=potential;
-
-    document.getElementById("websiteStat").textContent=websites;
-
-    document.getElementById("convertedStat").textContent=converted;
-
-}
-
-
-/* =====================================================
-   FILTER
-===================================================== */
-
-function setFilter(filter,button){
-
-    currentFilter=filter;
-
-
-    document.querySelectorAll(
-        ".filter-btn"
-    ).forEach(
-        btn =>
-            btn.classList.remove("active")
+    return authError(
+      "Email and password are required."
     );
 
+  }
 
-    button.classList.add("active");
+  try{
 
-    renderLeads();
+    const d=await apiFetch(
+      "/api/signup",
+      {
+        method:"POST",
+        body:JSON.stringify({
+          name,
+          email,
+          password
+        })
+      }
+    );
 
-}
+    token=d.token;
+    currentUser=d.user;
 
+    localStorage.setItem(
+      "lse_token",
+      token
+    );
 
-/* =====================================================
-   SAFE LEAD ID
-===================================================== */
+    $("userName").textContent=
+      currentUser.name||currentUser.email;
 
-function getLeadId(lead){
+    showApp();
 
-    if(!lead){
-        return null;
-    }
+    toast("Account created.");
 
+  }catch(e){
 
-    const possibleId =
-        lead.id ??
-        lead.lead_id ??
-        lead.db_id ??
-        lead.database_id;
+    authError(e.message);
 
-
-    if(
-        possibleId===undefined ||
-        possibleId===null ||
-        possibleId===""
-    ){
-        return null;
-    }
-
-
-    const numberId =
-        Number(possibleId);
-
-
-    if(!Number.isInteger(numberId) || numberId<=0){
-        return null;
-    }
-
-
-    return numberId;
+  }
 
 }
 
 
-/* =====================================================
-   SAFE URL
-===================================================== */
+async function handleLogin(){
 
-function safeUrl(value){
+  const email=$("loginEmail").value.trim();
+  const password=$("loginPassword").value;
 
-    if(!value){
-        return null;
-    }
+  if(!email||!password){
+
+    return authError(
+      "Email and password are required."
+    );
+
+  }
+
+  try{
+
+    const d=await apiFetch(
+      "/api/login",
+      {
+        method:"POST",
+        body:JSON.stringify({
+          email,
+          password
+        })
+      }
+    );
+
+    token=d.token;
+    currentUser=d.user;
+
+    localStorage.setItem(
+      "lse_token",
+      token
+    );
+
+    $("userName").textContent=
+      currentUser.name||currentUser.email;
+
+    showApp();
+
+  }catch(e){
+
+    authError(e.message);
+
+  }
+
+}
 
 
-    let url =
-        String(value).trim();
+async function fetchMe(){
+
+  try{
+
+    const d=await apiFetch("/api/me");
+
+    currentUser=d.user;
+
+    $("userName").textContent=
+      currentUser.name||currentUser.email;
+
+    showApp();
+
+  }catch(e){
+
+    showAuth();
+
+  }
+
+}
 
 
-    if(!url){
-        return null;
-    }
+function handleLogout(){
+
+  token=null;
+
+  localStorage.removeItem("lse_token");
+
+  currentUser=null;
+
+  showAuth();
+
+}
 
 
-    /*
-     Fix old malformed local links such as:
-     http://127.0.0.1:8000/www.example.com
-    */
+/* SEARCH MODE */
 
-    const localPrefix =
-        `${window.location.origin}/`;
+function changeMode(){
+
+  const mode=
+    document.querySelector(
+      'input[name="searchMode"]:checked'
+    ).value;
+
+  $("categoryField")
+    .classList
+    .toggle(
+      "hidden",
+      mode!=="category"
+    );
+
+  $("keywordField")
+    .classList
+    .toggle(
+      "hidden",
+      mode!=="keyword"
+    );
+
+}
 
 
-    if(url.startsWith(localPrefix)){
+/* SEARCH */
 
-        const rest =
-            url.substring(localPrefix.length);
+async function handleSearch(){
 
-        if(
-            rest.startsWith("www.") ||
-            rest.startsWith("http://") ||
-            rest.startsWith("https://")
-        ){
-            url=rest;
+  const city=
+    $("cityInput").value.trim();
+
+  const mode=
+    document.querySelector(
+      'input[name="searchMode"]:checked'
+    ).value;
+
+  const category=
+    mode==="category"
+      ? $("categoryInput").value
+      : null;
+
+  const keyword=
+    mode==="keyword"
+      ? $("keywordInput").value.trim()
+      : null;
+
+  const limit=Math.max(
+    1,
+    Math.min(
+      100,
+      parseInt($("limitInput").value)||10
+    )
+  );
+
+  if(!city){
+
+    return setStatus(
+      "Please enter a city.",
+      true
+    );
+
+  }
+
+  if(mode==="keyword"&&!keyword){
+
+    return setStatus(
+      "Please enter a custom keyword.",
+      true
+    );
+
+  }
+
+  setStatus(
+    '<span class="spinner"></span> Searching real businesses...',
+    false,
+    true
+  );
+
+  try{
+
+    const d=await apiFetch(
+      "/api/search",
+      {
+        method:"POST",
+        body:JSON.stringify({
+          city,
+          category,
+          keyword,
+          limit,
+          city_wide:$("cityWide").checked,
+          enrich:$("enrich").checked
+        })
+      }
+    );
+
+    currentResults=d.leads||[];
+
+    renderResults();
+
+    setStatus(
+      `Found ${d.count||0} lead(s) in ${
+        esc(d.city_resolved||city)
+      }.${
+        d.warnings?.length
+          ? " Some provider warnings occurred."
+          : ""
+      }`
+    );
+
+    loadHistory();
+    loadSavedLeads();
+
+  }catch(e){
+
+    setStatus(
+      e.message,
+      true
+    );
+
+  }
+
+}
+
+
+function setStatus(
+  msg,
+  error=false,
+  html=false
+){
+
+  const s=$("searchStatus");
+
+  s.classList.remove(
+    "hidden",
+    "error",
+    "info"
+  );
+
+  s.classList.add(
+    error ? "error" : "info"
+  );
+
+  if(html){
+    s.innerHTML=msg;
+  }else{
+    s.textContent=msg;
+  }
+
+}
+
+
+/* RESULTS */
+
+function renderResults(){
+
+  const b=$("resultsBody");
+
+  b.innerHTML="";
+
+  $("selectAll").checked=false;
+
+  $("resultsEmpty")
+    .classList
+    .toggle(
+      "hidden",
+      currentResults.length>0
+    );
+
+  $("resultSummary").textContent=
+    currentResults.length
+      ? `${currentResults.length} result(s)`
+      : "";
+
+  currentResults.forEach(l=>{
+
+    const tr=document.createElement("tr");
+
+    tr.innerHTML=`
+
+      <td>
+        <input
+          class="result-check"
+          type="checkbox"
+          data-id="${l.id??""}"
+          onchange="updateSelected()"
+        >
+      </td>
+
+      <td>
+        <strong>${esc(l.name)}</strong>
+        <br>
+        <span class="muted">
+          ${esc(l.category||"")}
+        </span>
+      </td>
+
+      <td>
+        ${na(l.address)}
+        <br>
+        <span class="muted">
+          ${esc(l.city||"")}
+        </span>
+      </td>
+
+      <td>
+        ${
+          l.phone
+            ? `<a href="tel:${esc(l.phone)}">
+                ${esc(l.phone)}
+              </a>`
+            : na(null)
         }
+      </td>
 
-    }
-
-
-    if(
-        !url.startsWith("http://") &&
-        !url.startsWith("https://")
-    ){
-
-        url="https://"+url;
-
-    }
-
-
-    return url;
-
-}
-
-
-/* =====================================================
-   RENDER
-===================================================== */
-
-function renderLeads(){
-
-    let leads=[
-        ...currentLeads
-    ];
-
-
-    if(currentFilter!=="ALL"){
-
-        if(
-            currentFilter==="Potential Lead" ||
-            currentFilter==="Business Found"
-        ){
-
-            leads=
-                leads.filter(
-                    lead =>
-                        lead.lead_type===currentFilter
-                );
-
-        }else{
-
-            leads=
-                leads.filter(
-                    lead =>
-                        lead.status===currentFilter
-                );
-
+      <td>
+        ${
+          l.website
+            ? `<a
+                href="${esc(l.website)}"
+                target="_blank"
+                rel="noopener"
+              >Visit</a>`
+            : na(null)
         }
+      </td>
 
-    }
+      <td>
+        ${
+          l.rating!=null
+            ? esc(l.rating)+" / "+esc(l.reviews??0)
+            : "-"
+        }
+      </td>
 
+      <td>
+        ${l.lead_score??"-"}
+      </td>
 
-    document.getElementById("resultCount").textContent =
-        `${leads.length} leads`;
+      <td>
+        <span class="badge ${typeClass(l.lead_type)}">
+          ${esc(
+            l.lead_type||
+            "Needs More Information"
+          )}
+        </span>
+      </td>
 
+      <td>
 
-    if(!leads.length){
+        <select
+          onchange="updateStatus(${l.id},this.value)"
+        >
 
-        document.getElementById("tableContainer").innerHTML =
-            '<div class="empty">No leads found.</div>';
+          ${STATUSES.map(s=>`
+            <option
+              ${s===l.status?"selected":""}
+            >
+              ${s}
+            </option>
+          `).join("")}
 
-        return;
+        </select>
 
-    }
+      </td>
 
+      <td>
 
-    let html=`
+        <button
+          class="secondary"
+          onclick="openDetail(${l.id})"
+        >
+          Details
+        </button>
 
-        <table>
-
-            <thead>
-
-                <tr>
-                    <th>Business</th>
-                    <th>Phone</th>
-                    <th>Address</th>
-                    <th>Website</th>
-                    <th>Rating</th>
-                    <th>Lead Type</th>
-                    <th>Status</th>
-                </tr>
-
-            </thead>
-
-            <tbody>
+      </td>
 
     `;
 
+    b.appendChild(tr);
 
-    leads.forEach(lead=>{
+  });
 
-        const typeClass =
-            lead.lead_type==="Potential Lead"
-                ? "badge-lead"
-                : "badge-business";
+  updateSelected();
 
-
-        const leadId =
-            getLeadId(lead);
+}
 
 
-        const website =
-            safeUrl(lead.website);
+/* SELECT */
+
+function updateSelected(){
+
+  const n=
+    document.querySelectorAll(
+      ".result-check:checked"
+    ).length;
+
+  $("selectedCount").textContent=
+    n
+      ? `${n} selected`
+      : "";
+
+}
+
+function setAll(v){
+
+  document
+    .querySelectorAll(".result-check")
+    .forEach(c=>c.checked=v);
+
+  updateSelected();
+
+}
+
+function toggleSelectAll(){
+
+  const boxes=[
+    ...document.querySelectorAll(
+      ".result-check"
+    )
+  ];
+
+  setAll(
+    boxes.length &&
+    !boxes.every(x=>x.checked)
+  );
+
+}
+
+function selectedIds(){
+
+  return [
+    ...document.querySelectorAll(
+      ".result-check:checked"
+    )
+  ]
+  .map(
+    x=>parseInt(x.dataset.id,10)
+  )
+  .filter(
+    Number.isFinite
+  );
+
+}
 
 
-        const maps =
-            safeUrl(lead.maps);
+/* STATUS */
+
+async function updateStatus(id,status){
+
+  try{
+
+    await apiFetch(
+      `/api/leads/${id}/status`,
+      {
+        method:"PATCH",
+        body:JSON.stringify({
+          status
+        })
+      }
+    );
+
+    [
+      ...currentResults,
+      ...savedLeads
+    ]
+    .filter(
+      l=>l.id===id
+    )
+    .forEach(
+      l=>l.status=status
+    );
+
+    toast(
+      "Lead status updated."
+    );
+
+  }catch(e){
+
+    toast(
+      e.message,
+      true
+    );
+
+  }
+
+}
 
 
-        const status =
-            lead.status || "Not Contacted";
+/* SAVED LEADS */
+
+function filterQuery(){
+
+  const p=new URLSearchParams();
+
+  const add=(k,v)=>{
+
+    if(v!==""&&v!=null){
+      p.set(k,v);
+    }
+
+  };
+
+  if($("fWebsite").checked)
+    add("has_website","true");
+
+  if($("fPhone").checked)
+    add("has_phone","true");
+
+  if($("fEmail").checked)
+    add("has_email","true");
+
+  if($("fSocial").checked)
+    add("has_social","true");
+
+  add(
+    "min_score",
+    $("fScore").value
+  );
+
+  add(
+    "lead_type",
+    $("fType").value
+  );
+
+  add(
+    "min_rating",
+    $("fRating").value
+  );
+
+  add(
+    "category",
+    $("fCategory").value
+  );
+
+  add(
+    "city",
+    $("fCity").value.trim()
+  );
+
+  add(
+    "source",
+    $("fSource").value.trim()
+  );
+
+  add(
+    "status",
+    $("fStatus").value
+  );
+
+  return p.toString()
+    ? "?"+p.toString()
+    : "";
+
+}
 
 
-        html+=`
+async function loadSavedLeads(){
 
-            <tr>
+  try{
 
-                <td>
+    const d=await apiFetch(
+      "/api/leads"+filterQuery()
+    );
 
-                    <div class="business-name">
-                        ${escapeHtml(lead.name || "-")}
-                    </div>
+    savedLeads=d.leads||[];
 
-                    ${
-                        maps
-                            ? `
-                                <a
-                                    class="maps-link"
-                                    href="${escapeAttribute(maps)}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    📍 Maps
-                                </a>
-                              `
-                            : ""
-                    }
+    $("savedSummary").textContent=
+      `${savedLeads.length} lead(s)`;
 
-                </td>
+    renderSaved();
 
+  }catch(e){
 
-                <td class="phone">
-                    ${escapeHtml(lead.phone || "-")}
-                </td>
+    toast(
+      e.message,
+      true
+    );
+
+  }
+
+}
 
 
-                <td>
-                    ${escapeHtml(lead.address || "-")}
-                </td>
+function renderSaved(){
+
+  const b=$("savedBody");
+
+  b.innerHTML="";
+
+  $("savedEmpty")
+    .classList
+    .toggle(
+      "hidden",
+      savedLeads.length>0
+    );
+
+  savedLeads.forEach(l=>{
+
+    const tr=document.createElement("tr");
+
+    tr.innerHTML=`
+
+      <td>
+        <strong>${esc(l.name)}</strong>
+        <br>
+        <span class="muted">
+          ${esc(l.category||"")}
+        </span>
+      </td>
+
+      <td>${na(l.city)}</td>
+
+      <td>
+        ${l.phone
+          ? esc(l.phone)
+          : na(null)
+        }
+
+        ${
+          l.email
+            ? `<br>${esc(l.email)}`
+            : ""
+        }
+      </td>
+
+      <td>
+        ${
+          l.website
+            ? `<a
+                href="${esc(l.website)}"
+                target="_blank"
+                rel="noopener"
+              >Visit</a>`
+            : na(null)
+        }
+      </td>
+
+      <td>
+        ${l.lead_score??"-"}
+      </td>
+
+      <td>
+        <span class="badge ${typeClass(l.lead_type)}">
+          ${esc(l.lead_type||"")}
+        </span>
+      </td>
+
+      <td>
+
+        <select
+          onchange="updateStatus(${l.id},this.value)"
+        >
+
+          ${STATUSES.map(s=>`
+            <option
+              ${s===l.status?"selected":""}
+            >
+              ${s}
+            </option>
+          `).join("")}
+
+        </select>
+
+      </td>
+
+      <td>${na(l.source)}</td>
+
+      <td>
+
+        <button
+          class="secondary"
+          onclick="openDetail(${l.id})"
+        >
+          Details
+        </button>
+
+      </td>
+
+    `;
+
+    b.appendChild(tr);
+
+  });
+
+}
 
 
-                <td>
+function clearFilters(){
 
-                    ${
-                        website
-                            ? `
-                                <a
-                                    class="website-link"
-                                    href="${escapeAttribute(website)}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    🌐 Website
-                                </a>
-                              `
-                            : "-"
-                    }
+  [
+    "fScore",
+    "fRating",
+    "fCity",
+    "fSource"
+  ].forEach(
+    id=>$(`${id}`).value=""
+  );
 
-                </td>
+  [
+    "fWebsite",
+    "fPhone",
+    "fEmail",
+    "fSocial"
+  ].forEach(
+    id=>$(`${id}`).checked=false
+  );
 
+  [
+    "fType",
+    "fCategory",
+    "fStatus"
+  ].forEach(
+    id=>$(`${id}`).value=""
+  );
 
-                <td>
+  loadSavedLeads();
 
-                    ${escapeHtml(
-                        lead.rating !== null &&
-                        lead.rating !== undefined &&
-                        lead.rating !== ""
-                            ? String(lead.rating)
-                            : "-"
-                    )}
-
-                    ${
-                        lead.reviews
-                            ? ` (${escapeHtml(String(lead.reviews))})`
-                            : ""
-                    }
-
-                </td>
+}
 
 
-                <td>
+/* DETAILS */
 
-                    <span class="badge ${typeClass}">
-                        ${escapeHtml(lead.lead_type || "-")}
-                    </span>
+async function openDetail(id){
 
-                </td>
+  const l=[
+    ...currentResults,
+    ...savedLeads
+  ].find(
+    x=>x.id===id
+  );
+
+  if(!l){
+
+    return toast(
+      "Lead details are not available.",
+      true
+    );
+
+  }
+
+  $("detailTitle").textContent=
+    l.name||"Lead Details";
 
 
-                <td>
+  const links=[
 
-                    <select
-                        class="status-select"
-                        ${leadId===null ? "disabled" : ""}
-                        title="${
-                            leadId===null
-                                ? "Lead ID unavailable"
-                                : "Update lead status"
-                        }"
-                        onchange="updateStatus(${leadId===null ? "null" : leadId},this.value)"
-                    >
+    l.website
+      ? `<a
+          class="secondary"
+          href="${esc(l.website)}"
+          target="_blank"
+          rel="noopener"
+        >Open Website</a>`
+      : "",
 
-                        ${statusOption(
-                            "Not Contacted",
-                            status
-                        )}
+    l.phone
+      ? `<a
+          class="secondary"
+          href="tel:${esc(l.phone)}"
+        >Call</a>`
+      : "",
 
-                        ${statusOption(
-                            "Contacted",
-                            status
-                        )}
+    l.email
+      ? `<a
+          class="secondary"
+          href="mailto:${esc(l.email)}"
+        >Email</a>`
+      : "",
 
-                        ${statusOption(
-                            "Interested",
-                            status
-                        )}
+    l.maps_url
+      ? `<a
+          class="secondary"
+          href="${esc(l.maps_url)}"
+          target="_blank"
+          rel="noopener"
+        >Open Map</a>`
+      : ""
 
-                        ${statusOption(
-                            "Follow-up",
-                            status
-                        )}
+  ].join("");
 
-                        ${statusOption(
-                            "Converted",
-                            status
-                        )}
 
-                    </select>
+  $("detailContent").innerHTML=`
 
-                </td>
+    <div class="actions">
+      ${
+        links ||
+        '<span class="muted">No direct contact action available.</span>'
+      }
+    </div>
 
-            </tr>
 
-        `;
+    <div class="detail-grid">
+
+      ${detail("Business",l.name)}
+      ${detail("Category",l.category)}
+      ${detail("Address",l.address)}
+      ${detail("City",l.city)}
+      ${detail("Region",l.region)}
+      ${detail("Country",l.country)}
+      ${detail("Phone",l.phone)}
+      ${detail("Email",l.email)}
+      ${detail("Website",l.website)}
+      ${detail("Instagram",l.instagram)}
+      ${detail("Facebook",l.facebook)}
+      ${detail("Twitter/X",l.twitter)}
+
+      ${detail(
+        "Rating",
+        l.rating!=null
+          ? `${l.rating} (${l.reviews??0} reviews)`
+          : null
+      )}
+
+      ${detail("Lead Score",l.lead_score)}
+      ${detail("Lead Type",l.lead_type)}
+      ${detail("Source",l.source)}
+
+      ${detail(
+        "Provider Place ID",
+        l.provider_place_id||l.place_id
+      )}
+
+      ${detail(
+        "Enrichment Source",
+        l.enrichment_source
+      )}
+
+    </div>
+
+
+    <label>AI Recommendation</label>
+
+    <div class="detail">
+      ${na(l.ai_recommendation)}
+    </div>
+
+
+    <label>AI Reason</label>
+
+    <div class="detail">
+      ${na(l.ai_reason)}
+    </div>
+
+
+    <label>Status</label>
+
+    <select id="detailStatus">
+
+      ${STATUSES.map(s=>`
+        <option
+          ${s===l.status?"selected":""}
+        >
+          ${s}
+        </option>
+      `).join("")}
+
+    </select>
+
+
+    <label>Notes</label>
+
+    <textarea id="detailNotes">${esc(l.notes||"")}</textarea>
+
+
+    <div class="actions">
+
+      <button
+        class="primary"
+        onclick="saveDetail(${id})"
+      >
+        Save Changes
+      </button>
+
+      <button
+        class="danger"
+        onclick="deleteLead(${id})"
+      >
+        Delete Lead
+      </button>
+
+    </div>
+
+  `;
+
+  $("detailModal")
+    .classList
+    .remove("hidden");
+
+}
+
+
+function detail(k,v){
+
+  return `
+    <div class="detail">
+      <b>${esc(k)}</b>
+      ${na(v)}
+    </div>
+  `;
+
+}
+
+
+function closeDetail(){
+
+  $("detailModal")
+    .classList
+    .add("hidden");
+
+}
+
+
+async function saveDetail(id){
+
+  try{
+
+    const status=
+      $("detailStatus").value;
+
+    const notes=
+      $("detailNotes").value;
+
+
+    await apiFetch(
+      `/api/leads/${id}/status`,
+      {
+        method:"PATCH",
+        body:JSON.stringify({
+          status
+        })
+      }
+    );
+
+
+    await apiFetch(
+      `/api/leads/${id}/notes`,
+      {
+        method:"PATCH",
+        body:JSON.stringify({
+          notes
+        })
+      }
+    );
+
+
+    toast(
+      "Lead updated."
+    );
+
+    closeDetail();
+
+    await loadSavedLeads();
+
+
+    currentResults.forEach(l=>{
+
+      if(l.id===id){
+
+        l.status=status;
+        l.notes=notes;
+
+      }
 
     });
 
 
-    html+=`
+    renderResults();
 
-            </tbody>
+  }catch(e){
 
-        </table>
+    toast(
+      e.message,
+      true
+    );
 
-    `;
-
-
-    document.getElementById("tableContainer").innerHTML=html;
-
-}
-
-
-/* =====================================================
-   STATUS OPTION
-===================================================== */
-
-function statusOption(value,current){
-
-    return `
-
-        <option
-            value="${escapeAttribute(value)}"
-            ${value===current ? "selected" : ""}
-        >
-            ${escapeHtml(value)}
-        </option>
-
-    `;
+  }
 
 }
 
 
-/* =====================================================
-   UPDATE STATUS
-===================================================== */
+async function deleteLead(id){
 
-async function updateStatus(leadId,status){
+  if(!confirm("Delete this lead?"))
+    return;
 
-    /*
-     Prevent the exact old problem:
-     /api/leads/undefined/status
-    */
+  try{
 
-    if(
-        leadId===null ||
-        leadId===undefined ||
-        !Number.isInteger(Number(leadId)) ||
-        Number(leadId)<=0
-    ){
+    await apiFetch(
+      `/api/leads/${id}`,
+      {
+        method:"DELETE"
+      }
+    );
 
-        alert(
-            "This lead does not have a valid database ID. Please search again and try once more."
-        );
+    currentResults=
+      currentResults.filter(
+        l=>l.id!==id
+      );
 
-        await loadLeads();
+    savedLeads=
+      savedLeads.filter(
+        l=>l.id!==id
+      );
 
-        return;
+    closeDetail();
 
-    }
+    renderResults();
+    renderSaved();
 
+    toast(
+      "Lead deleted."
+    );
 
-    try{
+  }catch(e){
 
-        const response =
-            await fetch(
-                `${API}/api/leads/${Number(leadId)}/status`,
-                {
+    toast(
+      e.message,
+      true
+    );
 
-                    method:"PATCH",
+  }
 
-                    headers:{
-                        ...authHeaders(),
-                        "Content-Type":"application/json"
-                    },
-
-                    body:JSON.stringify({
-                        status:status
-                    })
-
-                }
-            );
+}
 
 
-        if(response.status===401){
+/* GROUPS */
 
-            logout();
-            return;
+async function loadGroups(){
 
-        }
+  try{
+
+    const d=await apiFetch(
+      "/api/groups"
+    );
+
+    groups=d.groups||[];
+
+    renderGroups();
+
+  }catch(e){
+
+    toast(
+      e.message,
+      true
+    );
+
+  }
+
+}
 
 
-        const data =
-            await response.json();
+function renderGroups(){
+
+  const r=$("groupsRow");
+
+  if(!groups.length){
+
+    r.innerHTML=
+      "<span class='muted'>No groups yet.</span>";
+
+    return;
+
+  }
+
+  r.innerHTML=
+    groups.map(g=>`
+
+      <button
+        class="chip"
+        onclick="openGroup(${g.id},'${esc(g.name).replace(/'/g,"\\'")}')"
+      >
+        ${esc(g.name)}
+      </button>
+
+    `).join("");
+
+}
 
 
-        if(!response.ok){
+async function createGroup(){
 
-            let detail="Status update failed.";
+  const name=
+    $("newGroup").value.trim();
 
-            if(typeof data.detail==="string"){
-                detail=data.detail;
-            }else if(Array.isArray(data.detail)){
-                detail=data.detail
-                    .map(item=>item.msg || "Invalid request")
-                    .join(", ");
+  if(!name){
+
+    return toast(
+      "Enter a group name.",
+      true
+    );
+
+  }
+
+  try{
+
+    await apiFetch(
+      "/api/groups",
+      {
+        method:"POST",
+        body:JSON.stringify({
+          name
+        })
+      }
+    );
+
+    $("newGroup").value="";
+
+    await loadGroups();
+
+    toast(
+      "Group created."
+    );
+
+  }catch(e){
+
+    toast(
+      e.message,
+      true
+    );
+
+  }
+
+}
+
+
+async function addSelectedToGroup(){
+
+  const ids=selectedIds();
+
+  if(!ids.length){
+
+    return toast(
+      "Select at least one lead first.",
+      true
+    );
+
+  }
+
+  if(!groups.length){
+
+    return toast(
+      "Create a group first.",
+      true
+    );
+
+  }
+
+  const text=
+    groups
+      .map(g=>`${g.id}: ${g.name}`)
+      .join("\n");
+
+  const pick=
+    prompt(
+      "Enter group ID:\n"+text
+    );
+
+  const gid=
+    parseInt(pick,10);
+
+  if(!groups.some(g=>g.id===gid)){
+
+    return toast(
+      "Invalid group ID.",
+      true
+    );
+
+  }
+
+  try{
+
+    const d=await apiFetch(
+      `/api/groups/${gid}/leads/bulk`,
+      {
+        method:"POST",
+        body:JSON.stringify({
+          lead_ids:ids
+        })
+      }
+    );
+
+    toast(
+      `Added ${d.added||0} lead(s).`
+    );
+
+  }catch(e){
+
+    toast(
+      e.message,
+      true
+    );
+
+  }
+
+}
+
+
+async function openGroup(id,name){
+
+  try{
+
+    const d=await apiFetch(
+      `/api/groups/${id}/leads`
+    );
+
+    $("groupTitle").textContent=name;
+
+    $("groupBody").innerHTML=
+      (d.leads||[])
+      .map(l=>`
+
+        <tr>
+
+          <td>${esc(l.name)}</td>
+
+          <td>${esc(l.city||"")}</td>
+
+          <td>${na(l.phone)}</td>
+
+          <td>
+            ${
+              l.website
+                ? `<a
+                    href="${esc(l.website)}"
+                    target="_blank"
+                  >Visit</a>`
+                : na(null)
             }
+          </td>
 
+          <td>
+            ${esc(l.status||"")}
+          </td>
 
-            throw new Error(detail);
+        </tr>
 
-        }
+      `)
+      .join("");
 
+    $("groupLeadsWrap")
+      .classList
+      .remove("hidden");
 
-        const lead =
-            currentLeads.find(
-                item =>
-                    getLeadId(item)===Number(leadId)
-            );
+  }catch(e){
 
+    toast(
+      e.message,
+      true
+    );
 
-        if(lead){
-
-            lead.status=status;
-
-        }
-
-
-        updateStats();
-
-        renderLeads();
-
-
-    }catch(error){
-
-        alert(
-            getErrorMessage(error)
-        );
-
-        /*
-         Reload DB data after an error so UI
-         doesn't show an incorrect status.
-        */
-
-        await loadLeads();
-
-    }
+  }
 
 }
 
 
-/* =====================================================
-   EXPORT EXCEL
-===================================================== */
+function closeGroup(){
+
+  $("groupLeadsWrap")
+    .classList
+    .add("hidden");
+
+}
+
+
+/* HISTORY */
+
+async function loadHistory(){
+
+  try{
+
+    const d=await apiFetch(
+      "/api/search-history"
+    );
+
+    $("historyBody").innerHTML=
+      (d.history||[])
+      .map(h=>`
+
+        <tr>
+
+          <td>${esc(h.city)}</td>
+
+          <td>
+            ${esc(
+              h.category||
+              h.keyword||
+              ""
+            )}
+          </td>
+
+          <td>
+            ${
+              h.city_wide
+                ? "Broader"
+                : "Normal"
+            }
+          </td>
+
+          <td>
+            ${h.result_count}
+          </td>
+
+          <td>
+            ${new Date(
+              h.created_at
+            ).toLocaleString()}
+          </td>
+
+        </tr>
+
+      `)
+      .join("");
+
+  }catch(e){}
+
+}
+
+
+/* EXCEL */
 
 async function exportExcel(){
 
-    if(!token){
+  try{
 
-        alert("Please login first.");
-
-        return;
-
-    }
-
-
-    try{
-
-        const response =
-            await fetch(
-                `${API}/api/export-excel`,
-                {
-                    method:"GET",
-                    headers:authHeaders()
-                }
-            );
-
-
-        if(response.status===401){
-
-            logout();
-            return;
-
+    const r=await fetch(
+      API_BASE+"/api/export-excel",
+      {
+        headers:{
+          Authorization:
+            "Bearer "+token
         }
+      }
+    );
 
+    if(!r.ok)
+      throw Error(
+        "Export failed."
+      );
 
-        if(!response.ok){
+    const blob=
+      await r.blob();
 
-            let message="Excel export failed.";
+    const u=
+      URL.createObjectURL(blob);
 
-            try{
+    const a=
+      document.createElement("a");
 
-                const data =
-                    await response.json();
+    a.href=u;
+    a.download=
+      "leads_export.xlsx";
 
-                if(typeof data.detail==="string"){
-                    message=data.detail;
-                }
+    a.click();
 
-            }catch(e){}
+    URL.revokeObjectURL(u);
 
-            throw new Error(message);
+  }catch(e){
 
-        }
+    toast(
+      e.message,
+      true
+    );
 
-
-        const blob =
-            await response.blob();
-
-
-        const url =
-            window.URL.createObjectURL(blob);
-
-
-        const link =
-            document.createElement("a");
-
-
-        link.href=url;
-
-        link.download="lead_search_results.xlsx";
-
-        document.body.appendChild(link);
-
-        link.click();
-
-        link.remove();
-
-        window.URL.revokeObjectURL(url);
-
-
-    }catch(error){
-
-        alert(
-            getErrorMessage(error)
-        );
-
-    }
+  }
 
 }
 
 
-/* =====================================================
-   HTML SECURITY
-===================================================== */
+/* TOAST */
 
-function escapeHtml(value){
+function toast(m,err=false){
 
-    return String(value ?? "")
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
+  const t=$("toast");
 
-}
+  t.textContent=m;
 
+  t.classList.remove(
+    "hidden"
+  );
 
-function escapeAttribute(value){
+  t.classList.toggle(
+    "err",
+    err
+  );
 
-    return escapeHtml(value);
+  clearTimeout(
+    toastTimer
+  );
 
-}
-
-
-/* =====================================================
-   AUTO LOGIN
-===================================================== */
-
-async function checkLogin(){
-
-    if(!token){
-
-        document.getElementById("authScreen").style.display="flex";
-
-        document.getElementById("app").style.display="none";
-
-        return;
-
-    }
-
-
-    try{
-
-        const response =
-            await fetch(
-                `${API}/api/me`,
-                {
-                    headers:authHeaders()
-                }
-            );
-
-
-        if(!response.ok){
-
-            localStorage.removeItem("lead_token");
-
-            token=null;
-
-            return;
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        startApp(data.user);
-
-
-    }catch(error){
-
-        console.error(
-            "Auto login error:",
-            error
-        );
-
-    }
+  toastTimer=setTimeout(
+    ()=>t.classList.add("hidden"),
+    3500
+  );
 
 }
 
 
-/* =====================================================
-   START
-===================================================== */
+/* TYPE */
 
-checkLogin();
+function typeClass(t){
+
+  const s=
+    (t||"").toLowerCase();
+
+  return s.includes("high")
+    ? "high"
+    : s.includes("medium")
+      ? "medium"
+      : s.includes("low")
+        ? "low"
+        : "needs";
+
+}
+
+
+/* INIT */
+
+function init(){
+
+  const c=$("categoryInput");
+  const fc=$("fCategory");
+
+  CATEGORIES.forEach(x=>{
+
+    const o=
+      document.createElement(
+        "option"
+      );
+
+    o.value=x;
+    o.textContent=x;
+
+    c.appendChild(o);
+
+
+    const o2=
+      o.cloneNode(true);
+
+    fc.appendChild(o2);
+
+  });
+
+
+  if(token){
+
+    fetchMe();
+
+  }else{
+
+    showAuth();
+
+  }
+
+}
+
+init();
 
 </script>
 
