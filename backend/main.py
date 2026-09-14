@@ -627,6 +627,9 @@ class AdminAgentUpdateRequest(BaseModel):
     password: Optional[str] = Field(None, min_length=6, max_length=200)
     active: Optional[bool] = None
 
+class AdminResetPasswordRequest(BaseModel):
+    new_password: str = Field(min_length=6, max_length=200)
+
 class SearchRequest(BaseModel):
 
     city: str = Field(min_length=2, max_length=120)
@@ -1974,6 +1977,26 @@ def admin_update_agent(user_id:int,req:AdminAgentUpdateRequest,current_user:dict
             except psycopg.errors.UniqueViolation:
                 raise HTTPException(status_code=400,detail="An account with that email already exists.")
             log_activity(cur,current_user["id"],None,"agent_updated",{"user_id":user_id,"fields":list(data.keys())})
+        conn.commit()
+    return {"success":True,"user_id":user_id}
+
+
+@app.post("/api/admin/agents/{user_id}/reset-password")
+def admin_reset_agent_password(user_id:int, req:AdminResetPasswordRequest, current_user:dict=Depends(get_current_user)):
+    require_admin(current_user)
+    password_hash, salt = hash_password(req.new_password)
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id,email,COALESCE(role,'Agent'),COALESCE(active,TRUE) FROM users WHERE id=%s", (user_id,))
+            target = cur.fetchone()
+            if not target:
+                raise HTTPException(status_code=404, detail="Account not found.")
+            if target[2] == "Admin" and user_id != current_user["id"]:
+                raise HTTPException(status_code=403, detail="Admin password can only be changed from the Admin account.")
+            if not target[3]:
+                raise HTTPException(status_code=400, detail="This account is disabled.")
+            cur.execute("UPDATE users SET password_hash=%s,salt=%s WHERE id=%s", (password_hash, salt, user_id))
+            log_activity(cur, current_user["id"], None, "password_reset", {"user_id": user_id, "email": target[1]})
         conn.commit()
     return {"success":True,"user_id":user_id}
 
