@@ -144,6 +144,15 @@ def require_admin(user: dict) -> None:
         raise HTTPException(status_code=403, detail="Admin permission required.")
 
 
+def is_team_leader(user: dict) -> bool:
+    return False
+
+def accessible_user_clause(user: dict, alias: str = "u"):
+    prefix = f"{alias}." if alias else ""
+    if is_admin(user):
+        return "TRUE", []
+    return f"{prefix}id=%s", [user["id"]]
+
 def lead_access_clause(user: dict, alias: str = ""):
     prefix = f"{alias}." if alias else ""
     if is_admin(user):
@@ -198,6 +207,34 @@ def local_today_utc_bounds() -> tuple[datetime, datetime, str]:
     start_local = datetime.combine(now_local.date(), datetime.min.time(), tzinfo=tz)
     end_local = start_local + timedelta(days=1)
     return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc), now_local.date().isoformat()
+
+def local_date_range_utc(date_from: Optional[str] = None, date_to: Optional[str] = None):
+    """Convert user-selected local calendar dates to UTC bounds using APP_TIMEZONE."""
+    if not date_from and not date_to:
+        return None, None
+    try:
+        tz = ZoneInfo(user_timezone_name())
+    except Exception:
+        tz = timezone.utc
+    try:
+        start_local = datetime.fromisoformat(date_from).replace(tzinfo=tz) if date_from else None
+        end_local = (datetime.fromisoformat(date_to).replace(tzinfo=tz) + timedelta(days=1)) if date_to else None
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date filter. Use YYYY-MM-DD.")
+    return (start_local.astimezone(timezone.utc) if start_local else None,
+            end_local.astimezone(timezone.utc) if end_local else None)
+
+def excel_safe_value(value):
+    """Convert timestamps to APP_TIMEZONE before writing timezone-naive Excel datetimes."""
+    if isinstance(value, datetime):
+        if value.tzinfo is not None:
+            try:
+                value = value.astimezone(ZoneInfo(user_timezone_name()))
+            except Exception:
+                pass
+            return value.replace(tzinfo=None)
+        return value
+    return value
 
 # ============================================================
 
@@ -277,7 +314,7 @@ def init_db():
 
                 password_hash TEXT NOT NULL, salt TEXT NOT NULL,
 
-                created_at TIMESTAMPTZ DEFAULT NOW(), role TEXT DEFAULT 'Agent')""")
+                created_at TIMESTAMPTZ DEFAULT NOW(), role TEXT DEFAULT 'Agent', team_leader_id INTEGER REFERENCES users(id) ON DELETE SET NULL, active BOOLEAN DEFAULT TRUE)""")
 
             _add_columns(cur, "users", {
 
@@ -289,6 +326,8 @@ def init_db():
 
                 "created_at": "ALTER TABLE users ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW()",
                 "role": "ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'Agent'",
+                "team_leader_id": "ALTER TABLE users ADD COLUMN team_leader_id INTEGER REFERENCES users(id) ON DELETE SET NULL",
+                "active": "ALTER TABLE users ADD COLUMN active BOOLEAN DEFAULT TRUE",
 
             })
 
@@ -442,15 +481,10 @@ def init_db():
                 details JSONB DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ DEFAULT NOW())""")
             cur.execute("CREATE INDEX IF NOT EXISTS leads_followup_idx ON leads(next_followup_date)")
             cur.execute("CREATE INDEX IF NOT EXISTS activity_logs_lead_created_idx ON activity_logs(lead_id,created_at DESC)")
-            cur.execute("CREATE INDEX IF NOT EXISTS call_logs_lead_date_idx ON call_logs(lead_id,call_date DESC)")
-            # Ensure legacy leads remain visible to their original creator and guarantee one Admin.
+            cur.execute("CREATE INDEX IF NOT EXISTS call_logs_lead_date_idx ON call_logs(lead_id,call_date DESC)")            # Ensure legacy leads remain visible to their original creator.
             cur.execute("UPDATE leads SET assigned_to=user_id WHERE assigned_to IS NULL AND user_id IS NOT NULL")
-            cur.execute("SELECT COUNT(*) FROM users WHERE role='Admin'")
-            if (cur.fetchone() or [0])[0] == 0:
-                cur.execute("SELECT id FROM users ORDER BY created_at ASC NULLS LAST,id ASC LIMIT 1")
-                first_user = cur.fetchone()
-                if first_user:
-                    cur.execute("UPDATE users SET role='Admin' WHERE id=%s", (first_user[0],))
+            # Never auto-promote signup users; Admin is created explicitly.
+            cur.execute("UPDATE users SET role='Agent' WHERE COALESCE(role,'Agent') NOT IN ('Admin','Agent')")
 
         conn.commit()
 
@@ -550,7 +584,7 @@ def get_current_user(authorization: Optional[str] = Header(None)):
 
         with conn.cursor() as cur:
 
-            cur.execute("SELECT id, email, name, COALESCE(role, 'Agent') FROM users WHERE id=%s", (user_id,))
+            cur.execute("SELECT id, email, name, COALESCE(role, 'Agent'), team_leader_id, COALESCE(active, TRUE) FROM users WHERE id=%s", (user_id,))
 
             user = cur.fetchone()
 
@@ -558,7 +592,9 @@ def get_current_user(authorization: Optional[str] = Header(None)):
 
         raise HTTPException(status_code=401, detail="User not found.")
 
-    return {"id": user[0], "email": user[1], "name": user[2], "role": user[3]}
+    if not user[5]:
+        raise HTTPException(status_code=403, detail="This account is disabled. Contact the Admin.")
+    return {"id": user[0], "email": user[1], "name": user[2], "role": user[3], "team_leader_id": user[4]}
 
 # ============================================================
 
@@ -579,6 +615,17 @@ class LoginRequest(BaseModel):
     email: str
 
     password: str
+
+class AdminAgentCreateRequest(BaseModel):
+    email: str
+    password: str = Field(min_length=6, max_length=200)
+    name: Optional[str] = Field(None, max_length=200)
+
+class AdminAgentUpdateRequest(BaseModel):
+    email: Optional[str] = None
+    name: Optional[str] = Field(None, max_length=200)
+    password: Optional[str] = Field(None, min_length=6, max_length=200)
+    active: Optional[bool] = None
 
 class SearchRequest(BaseModel):
 
@@ -684,9 +731,8 @@ def signup(req: SignupRequest):
 
                     raise HTTPException(status_code=400, detail="An account with this email already exists.")
 
-                cur.execute("SELECT COUNT(*) FROM users")
-                role = "Admin" if cur.fetchone()[0] == 0 else "Agent"
-                cur.execute("INSERT INTO users(email,name,password_hash,salt,role) VALUES(%s,%s,%s,%s,%s) RETURNING id", (email, name or None, password_hash, salt, role))
+                role = "Agent"
+                cur.execute("INSERT INTO users(email,name,password_hash,salt,role,active) VALUES(%s,%s,%s,%s,%s,TRUE) RETURNING id", (email, name or None, password_hash, salt, role))
 
                 user_id = cur.fetchone()[0]
 
@@ -716,7 +762,7 @@ def login(req: LoginRequest):
 
             with conn.cursor() as cur:
 
-                cur.execute("SELECT id,email,name,password_hash,salt,COALESCE(role, 'Agent') FROM users WHERE email=%s", (email,))
+                cur.execute("SELECT id,email,name,password_hash,salt,COALESCE(role, 'Agent'),team_leader_id,COALESCE(active, TRUE) FROM users WHERE email=%s", (email,))
 
                 user = cur.fetchone()
 
@@ -727,8 +773,10 @@ def login(req: LoginRequest):
     if not user or not verify_password(req.password, user[3], user[4]):
 
         raise HTTPException(status_code=401, detail="Invalid email or password.")
+    if not user[7]:
+        raise HTTPException(status_code=403, detail="This account is disabled. Contact the Admin.")
 
-    return {"token": create_token(user[0], user[1]), "user": {"id": user[0], "email": user[1], "name": user[2], "role": user[5]}}
+    return {"token": create_token(user[0], user[1]), "user": {"id": user[0], "email": user[1], "name": user[2], "role": user[5], "team_leader_id": user[6]}}
 
 @app.get("/api/me")
 
@@ -1823,7 +1871,7 @@ def row_to_lead(row):
     }
 
 @app.get("/api/leads")
-def get_saved_leads(has_website: Optional[bool]=None,has_phone: Optional[bool]=None,has_email: Optional[bool]=None,has_social: Optional[bool]=None,min_score: Optional[int]=Query(None,ge=0,le=100),lead_type: Optional[str]=None,min_rating: Optional[float]=Query(None,ge=0,le=5),category: Optional[str]=None,city: Optional[str]=None,source: Optional[str]=None,status: Optional[str]=None,assigned_to: Optional[int]=None,current_user: dict=Depends(get_current_user)):
+def get_saved_leads(has_website: Optional[bool]=None,has_phone: Optional[bool]=None,has_email: Optional[bool]=None,has_social: Optional[bool]=None,min_score: Optional[int]=Query(None,ge=0,le=100),lead_type: Optional[str]=None,min_rating: Optional[float]=Query(None,ge=0,le=5),category: Optional[str]=None,city: Optional[str]=None,source: Optional[str]=None,status: Optional[str]=None,assigned_to: Optional[int]=None,date_from: Optional[str]=None,date_to: Optional[str]=None,current_user: dict=Depends(get_current_user)):
     scope,params=lead_access_clause(current_user); clauses=[scope]; params=list(params)
     for flag,col in [(has_website,"website"),(has_phone,"phone"),(has_email,"email")]:
         if flag is True: clauses.append(f"NULLIF(TRIM({col}),'') IS NOT NULL")
@@ -1835,8 +1883,20 @@ def get_saved_leads(has_website: Optional[bool]=None,has_phone: Optional[bool]=N
     if min_rating is not None: clauses.append("COALESCE(rating,0)>=%s"); params.append(min_rating)
     for val,col in [(category,"category"),(city,"city"),(source,"source"),(status,"status")]:
         if val: clauses.append(f"{col} ILIKE %s"); params.append(f"%{val}%")
+    start_utc, end_utc = local_date_range_utc(date_from, date_to)
+    if start_utc is not None:
+        clauses.append("created_at >= %s"); params.append(start_utc)
+    if end_utc is not None:
+        clauses.append("created_at < %s"); params.append(end_utc)
     if assigned_to is not None:
-        if not is_admin(current_user) and assigned_to!=current_user["id"]: raise HTTPException(status_code=403,detail="Agents can only view their assigned leads.")
+        if is_team_leader(current_user):
+            if assigned_to != current_user["id"]:
+                with db_conn() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT id FROM users WHERE id=%s AND team_leader_id=%s",(assigned_to,current_user["id"]))
+                        if not cur.fetchone(): raise HTTPException(status_code=403,detail="Agent is outside your team.")
+        elif not is_admin(current_user) and assigned_to!=current_user["id"]:
+            raise HTTPException(status_code=403,detail="Agents can only view their assigned leads.")
         clauses.append("assigned_to=%s"); params.append(assigned_to)
     order="CASE WHEN lead_type='Hot Lead' THEN 0 WHEN lead_type='Warm Lead' THEN 1 ELSE 2 END,COALESCE(lead_score,0) DESC,created_at DESC"
     with db_conn() as conn:
@@ -1844,31 +1904,122 @@ def get_saved_leads(has_website: Optional[bool]=None,has_phone: Optional[bool]=N
             cur.execute(LEAD_SELECT+" WHERE "+" AND ".join(clauses)+" ORDER BY "+order,params); rows=cur.fetchall()
     return {"success":True,"total":len(rows),"leads":[row_to_lead(r) for r in rows]}
 
-@app.patch("/api/team-members/{user_id}/role")
-def update_team_member_role(user_id:int, role:str, current_user:dict=Depends(get_current_user)):
+@app.get("/api/admin/agents")
+def admin_list_agents(current_user:dict=Depends(get_current_user)):
     require_admin(current_user)
-    role=role.strip().title()
-    if role not in VALID_ROLES: raise HTTPException(status_code=400,detail="Role must be Admin or Agent.")
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT id,email,name,COALESCE(role,'Agent'),COALESCE(active,TRUE),created_at
+                           FROM users ORDER BY CASE WHEN role='Admin' THEN 0 ELSE 1 END,name NULLS LAST,email""")
+            rows=cur.fetchall()
+    return {"agents":[{"id":r[0],"email":r[1],"name":r[2],"role":r[3],"active":r[4],"created_at":str(r[5]) if r[5] else None} for r in rows]}
+
+@app.post("/api/admin/agents")
+def admin_create_agent(req:AdminAgentCreateRequest,current_user:dict=Depends(get_current_user)):
+    require_admin(current_user)
+    email=req.email.strip().lower()
+    name=(req.name or "").strip()
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(status_code=400,detail="Please enter a valid email address.")
+    password_hash,salt=hash_password(req.password)
+    try:
+        with db_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id FROM users WHERE lower(email)=lower(%s)",(email,))
+                if cur.fetchone():
+                    raise HTTPException(status_code=400,detail="An account with this email already exists.")
+                cur.execute("""INSERT INTO users(email,name,password_hash,salt,role,team_leader_id,active)
+                               VALUES(%s,%s,%s,%s,'Agent',NULL,TRUE) RETURNING id""",
+                            (email,name or None,password_hash,salt))
+                agent_id=cur.fetchone()[0]
+                log_activity(cur,current_user["id"],None,"agent_created",{"agent_id":agent_id,"email":email})
+            conn.commit()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500,detail=f"Agent creation failed: {type(exc).__name__}.")
+    return {"success":True,"agent":{"id":agent_id,"email":email,"name":name,"role":"Agent","active":True}}
+
+@app.patch("/api/admin/agents/{user_id}")
+def admin_update_agent(user_id:int,req:AdminAgentUpdateRequest,current_user:dict=Depends(get_current_user)):
+    require_admin(current_user)
+    data=req.model_dump(exclude_unset=True)
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id,email,COALESCE(role,'Agent'),COALESCE(active,TRUE) FROM users WHERE id=%s",(user_id,))
+            target=cur.fetchone()
+            if not target: raise HTTPException(status_code=404,detail="Account not found.")
+            if target[2]=="Admin" and data.get("active") is False:
+                raise HTTPException(status_code=400,detail="The Admin account cannot be disabled.")
+            if user_id==current_user["id"] and data.get("active") is False:
+                raise HTTPException(status_code=400,detail="You cannot disable your own Admin account.")
+            sets=[]; vals=[]
+            if "email" in data and data["email"] is not None:
+                email=str(data["email"]).strip().lower()
+                if "@" not in email or "." not in email.split("@")[-1]:
+                    raise HTTPException(status_code=400,detail="Invalid email address.")
+                sets.append("email=%s"); vals.append(email)
+            if "name" in data:
+                sets.append("name=%s"); vals.append((data["name"] or "").strip() or None)
+            if data.get("password"):
+                ph,salt=hash_password(data["password"])
+                sets.extend(["password_hash=%s","salt=%s"]); vals.extend([ph,salt])
+            if "active" in data and data["active"] is not None:
+                sets.append("active=%s"); vals.append(bool(data["active"]))
+            if not sets:
+                raise HTTPException(status_code=400,detail="No changes supplied.")
+            vals.append(user_id)
+            try:
+                cur.execute("UPDATE users SET "+",".join(sets)+" WHERE id=%s",vals)
+            except psycopg.errors.UniqueViolation:
+                raise HTTPException(status_code=400,detail="An account with that email already exists.")
+            log_activity(cur,current_user["id"],None,"agent_updated",{"user_id":user_id,"fields":list(data.keys())})
+        conn.commit()
+    return {"success":True,"user_id":user_id}
+
+@app.delete("/api/admin/agents/{user_id}")
+def admin_disable_agent(user_id:int,current_user:dict=Depends(get_current_user)):
+    require_admin(current_user)
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id,COALESCE(role,'Agent') FROM users WHERE id=%s",(user_id,))
             target=cur.fetchone()
-            if not target: raise HTTPException(status_code=404,detail="Team member not found.")
-            if target[1] == "Admin" and role == "Agent":
-                cur.execute("SELECT COUNT(*) FROM users WHERE role='Admin'")
-                if (cur.fetchone() or [0])[0] <= 1:
-                    raise HTTPException(status_code=400,detail="At least one Admin account must remain.")
-            cur.execute("UPDATE users SET role=%s WHERE id=%s",(role,user_id))
-            log_activity(cur,current_user["id"],None,"team_role_changed",{"user_id":user_id,"role":role})
+            if not target: raise HTTPException(status_code=404,detail="Account not found.")
+            if target[1]=="Admin" or user_id==current_user["id"]:
+                raise HTTPException(status_code=400,detail="The Admin account cannot be disabled or deleted.")
+            cur.execute("UPDATE users SET active=FALSE WHERE id=%s",(user_id,))
+            log_activity(cur,current_user["id"],None,"agent_disabled",{"user_id":user_id})
         conn.commit()
-    return {"success":True,"user_id":user_id,"role":role}
+    return {"success":True,"user_id":user_id,"active":False}
 
 @app.get("/api/team-members")
 def team_members(current_user: dict=Depends(get_current_user)):
+    scope,params=accessible_user_clause(current_user,"u")
     with db_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT id,email,name,COALESCE(role,'Agent') FROM users ORDER BY name NULLS LAST,email"); rows=cur.fetchall()
-    return {"team_members":[{"id":r[0],"email":r[1],"name":r[2],"role":r[3]} for r in rows]}
+            cur.execute("SELECT u.id,u.email,u.name,COALESCE(u.role,'Agent'),u.team_leader_id,t.name FROM users u LEFT JOIN users t ON t.id=u.team_leader_id WHERE "+scope+" ORDER BY u.name NULLS LAST,u.email",params)
+            rows=cur.fetchall()
+    return {"team_members":[{"id":r[0],"email":r[1],"name":r[2],"role":r[3],"team_leader_id":r[4],"team_leader_name":r[5]} for r in rows]}
+
+@app.patch("/api/team-members/{user_id}/role")
+def update_team_member_role(user_id:int, role:str, current_user:dict=Depends(get_current_user)):
+    require_admin(current_user)
+    role=role.strip().title()
+    if role not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail="Role must be Admin or Agent.")
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id,COALESCE(role,'Agent') FROM users WHERE id=%s",(user_id,))
+            target=cur.fetchone()
+            if not target: raise HTTPException(status_code=404, detail="Team member not found.")
+            if target[1]=='Admin' and role!='Admin':
+                raise HTTPException(status_code=400, detail="The single Admin account cannot be changed to Agent.")
+            if user_id==current_user["id"] and role!="Admin":
+                raise HTTPException(status_code=400, detail="The Admin account cannot remove its own Admin role.")
+            cur.execute("UPDATE users SET role=%s,team_leader_id=NULL WHERE id=%s",(role,user_id))
+            log_activity(cur,current_user['id'],None,'team_role_changed',{'user_id':user_id,'role':role})
+        conn.commit()
+    return {"success":True,"user_id":user_id,"role":role}
 
 @app.get("/api/dashboard/followups")
 def dashboard_followups(current_user: dict=Depends(get_current_user)):
@@ -1882,156 +2033,63 @@ def dashboard_followups(current_user: dict=Depends(get_current_user)):
     return {"today":today_rows,"missed":missed,"today_count":len(today_rows),"missed_count":len(missed),"date":today_name,"timezone":user_timezone_name()}
 
 @app.get("/api/dashboard/summary")
-def dashboard_summary(current_user: dict = Depends(get_current_user)):
-    """Simple dashboard totals for the leads visible to the current user."""
-    scope, params = lead_access_clause(current_user, "l")
+def dashboard_summary(current_user:dict=Depends(get_current_user)):
+    scope,params=lead_access_clause(current_user,'l'); start_utc,end_utc,_=local_today_utc_bounds(); now=datetime.now(timezone.utc)
     with db_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute(f"""
-                SELECT
-                    COUNT(*) AS total_leads,
-                    COUNT(*) FILTER (WHERE l.last_contacted_date IS NOT NULL) AS contacted_leads,
-                    (SELECT COUNT(*) FROM call_logs c JOIN leads x ON x.id=c.lead_id WHERE {scope.replace('l.', 'x.')}) AS total_calls,
-                    COUNT(*) FILTER (WHERE l.next_followup_date IS NOT NULL AND l.next_followup_date >= %s AND l.next_followup_date < %s AND l.status NOT IN ('Converted','Lost')) AS today_followups,
-                    COUNT(*) FILTER (WHERE l.next_followup_date IS NOT NULL AND l.next_followup_date < %s AND l.status NOT IN ('Converted','Lost')) AS missed_followups
-                FROM leads l
-                WHERE {scope}
-            """, params + list(local_today_utc_bounds()[:2]) + [datetime.now(timezone.utc)] + params)
-            row = cur.fetchone()
-    return {
-        "total_leads": row[0] or 0,
-        "contacted_leads": row[1] or 0,
-        "total_calls": row[2] or 0,
-        "today_followups": row[3] or 0,
-        "missed_followups": row[4] or 0,
-    }
+            # Keep the access-scope parameters separate from the date parameters so PostgreSQL
+            # never binds a date value into the lead-access placeholders.
+            sql=f"SELECT COUNT(*),COUNT(*) FILTER(WHERE l.last_contacted_date IS NOT NULL),COUNT(*) FILTER(WHERE l.status='Converted'),COUNT(*) FILTER(WHERE l.next_followup_date IS NOT NULL AND l.next_followup_date >= %s AND l.next_followup_date < %s AND l.status NOT IN ('Converted','Lost')),COUNT(*) FILTER(WHERE l.next_followup_date IS NOT NULL AND l.next_followup_date < %s AND l.status NOT IN ('Converted','Lost')) FROM leads l WHERE {scope}"
+            cur.execute(sql,[start_utc,end_utc,now,*params]); total,contacted,success,today,missed=cur.fetchone()
+            cur.execute('SELECT COUNT(*) FROM call_logs c JOIN leads l ON l.id=c.lead_id WHERE '+scope,params); calls=cur.fetchone()[0] or 0
+    return {'total_leads':total or 0,'contacted_leads':contacted or 0,'success_leads':success or 0,'total_calls':calls,'today_followups':today or 0,'missed_followups':missed or 0}
 
 @app.get("/api/dashboard/agent-performance")
-def agent_performance(
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
-):
-    """Professional agent scorecard with independently calculated metrics.
-
-    Date filters are built dynamically so PostgreSQL never has to infer the
-    datatype of a NULL parameter. This also prevents JOIN multiplication.
-    """
-    start = None
-    end = None
+def agent_performance(date_from:Optional[str]=None,date_to:Optional[str]=None,current_user:dict=Depends(get_current_user)):
+    start=end=None
     if date_from:
-        try:
-            parsed = datetime.fromisoformat(date_from)
-            start = parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date_from.")
+        try: start=datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
+        except ValueError: raise HTTPException(status_code=400,detail="Invalid date_from.")
     if date_to:
-        try:
-            parsed = datetime.fromisoformat(date_to)
-            parsed = parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-            end = parsed + timedelta(days=1)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date_to.")
-
-    def date_clause(column: str, start_value, end_value):
-        parts = []
-        args = []
-        if start_value is not None:
-            parts.append(f"{column} >= %s")
-            args.append(start_value)
-        if end_value is not None:
-            parts.append(f"{column} < %s")
-            args.append(end_value)
-        return (" AND " + " AND ".join(parts)) if parts else "", args
-
+        try: end=datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc)+timedelta(days=1)
+        except ValueError: raise HTTPException(status_code=400,detail="Invalid date_to.")
     with db_conn() as conn:
         with conn.cursor() as cur:
-            is_admin = str(current_user.get("role") or "Agent").strip().lower() == "admin"
-            if is_admin:
-                cur.execute("SELECT id, name, email FROM users ORDER BY name NULLS LAST, id")
+            if is_admin(current_user):
+                cur.execute("SELECT u.id,u.name,u.email,COALESCE(u.role,'Agent') FROM users u WHERE COALESCE(u.active,TRUE)=TRUE ORDER BY u.name NULLS LAST,u.id")
+                users=cur.fetchall()
             else:
-                cur.execute("SELECT id, name, email FROM users WHERE id=%s", (current_user["id"],))
-            users = cur.fetchall()
-
-            out = []
-            for uid, name, email in users:
-                lead_date_sql, lead_date_args = date_clause("created_at", start, end)
-                cur.execute(
-                    f"SELECT COUNT(*) FROM leads WHERE assigned_to=%s{lead_date_sql}",
-                    [uid, *lead_date_args],
-                )
-                assigned = cur.fetchone()[0] or 0
-
-                call_date_sql, call_date_args = date_clause("call_date", start, end)
-                cur.execute(
-                    f"""
-                    SELECT
-                        COUNT(*),
-                        COUNT(*) FILTER (WHERE lower(trim(COALESCE(call_outcome,''))) IN ('connected','interested','follow-up','converted')),
-                        COUNT(*) FILTER (WHERE lower(trim(COALESCE(call_outcome,'')))='interested'),
-                        COUNT(*) FILTER (WHERE lower(trim(COALESCE(call_outcome,'')))='follow-up'),
-                        COUNT(*) FILTER (WHERE lower(trim(COALESCE(call_outcome,'')))='converted'),
-                        COUNT(DISTINCT lead_id) FILTER (WHERE lower(trim(COALESCE(call_outcome,''))) IN ('connected','interested','follow-up','converted'))
-                    FROM call_logs
-                    WHERE called_by=%s{call_date_sql}
-                    """,
-                    [uid, *call_date_args],
-                )
-                c = cur.fetchone()
-                calls, connected, interested, followups, converted_calls, contacted = [x or 0 for x in c]
-
-                updated_sql, updated_args = date_clause("updated_at", start, end)
-                cur.execute(
-                    f"SELECT COUNT(*) FROM leads WHERE assigned_to=%s AND status='Converted'{updated_sql}",
-                    [uid, *updated_args],
-                )
-                converted_status = cur.fetchone()[0] or 0
-                converted = max(converted_calls, converted_status)
-
-                followup_sql, followup_args = date_clause("next_followup_date", start, end)
-                cur.execute(
-                    f"""
-                    SELECT COUNT(*) FROM leads
-                    WHERE assigned_to=%s
-                      AND next_followup_date IS NOT NULL
-                      {followup_sql}
-                      AND status NOT IN ('Converted','Lost')
-                    """,
-                    [uid, *followup_args],
-                )
-                scheduled_followups = cur.fetchone()[0] or 0
-
-                contact_rate = round((connected / calls) * 100, 1) if calls else 0.0
-                conversion_rate = round((converted / contacted) * 100, 1) if contacted else 0.0
-                activity_rate = round(((connected + followups + interested) / calls) * 100, 1) if calls else 0.0
-
-                out.append({
-                    "id": uid, "name": name, "email": email,
-                    "assigned_leads": assigned,
-                    "contacts": contacted,
-                    "calls": calls,
-                    "connected": connected,
-                    "interested": interested,
-                    "followups": followups + scheduled_followups,
-                    "scheduled_followups": scheduled_followups,
-                    "converted": converted,
-                    "converted_calls": converted_calls,
-                    "contact_rate": contact_rate,
-                    "conversion_rate": conversion_rate,
-                    "activity_rate": activity_rate,
-                })
-
-    out.sort(key=lambda x: (x["converted"], x["contacts"], x["connected"], x["calls"]), reverse=True)
-    for i, item in enumerate(out, 1):
-        item["rank"] = i
-        item["performance_score"] = round(
-            min(item["contact_rate"], 100) * 0.30
-            + min(item["conversion_rate"], 100) * 0.40
-            + min((item["connected"] / max(item["calls"], 1)) * 100, 100) * 0.20
-            + min(item["followups"] / max(item["assigned_leads"], 1) * 100, 100) * 0.10,
-            1,
-        )
-    return {"performance": out, "date_from": date_from, "date_to": date_to}
+                cur.execute("SELECT u.id,u.name,u.email,COALESCE(u.role,'Agent') FROM users u WHERE u.id=%s", (current_user["id"],))
+                own=cur.fetchone()
+                cur.execute("SELECT u.id,u.name,u.email,COALESCE(u.role,'Agent') FROM users u WHERE COALESCE(u.active,TRUE)=TRUE AND COALESCE(u.role,'Agent')='Agent' AND u.id<>%s ORDER BY u.name NULLS LAST,u.id", (current_user["id"],))
+                others=cur.fetchall()
+                users=list(([own] if own else []) + list(others))
+            out=[]
+            for uid,name,email,role in users:
+                lw=['assigned_to=%s']; lp=[uid]
+                if start: lw.append('created_at >= %s'); lp.append(start)
+                if end: lw.append('created_at < %s'); lp.append(end)
+                cur.execute('SELECT COUNT(*) FROM leads WHERE '+' AND '.join(lw),lp); assigned=cur.fetchone()[0] or 0
+                cw=['called_by=%s']; cp=[uid]
+                if start: cw.append('call_date >= %s'); cp.append(start)
+                if end: cw.append('call_date < %s'); cp.append(end)
+                cur.execute("SELECT COUNT(*),COUNT(*) FILTER(WHERE lower(trim(call_outcome)) IN ('connected','interested','follow-up','converted')),COUNT(*) FILTER(WHERE lower(trim(call_outcome))='interested'),COUNT(*) FILTER(WHERE lower(trim(call_outcome))='follow-up'),COUNT(*) FILTER(WHERE lower(trim(call_outcome))='converted'),COUNT(DISTINCT lead_id) FILTER(WHERE lower(trim(call_outcome)) IN ('connected','interested','follow-up','converted')),COUNT(*) FILTER(WHERE lower(trim(call_outcome)) IN ('not interested','no answer','failed','failure')) FROM call_logs WHERE "+' AND '.join(cw),cp)
+                calls,connected,interested,followups,converted_calls,contacts,failures=[x or 0 for x in cur.fetchone()]
+                success=interested+converted_calls
+                decided=success+failures
+                success_rate=round(success*100/decided,1) if decided else 0.0
+                contact_rate=round(contacts*100/assigned,1) if assigned else 0.0
+                followup_rate=round(followups*100/assigned,1) if assigned else 0.0
+                # Balanced score: contact activity, connection quality, follow-up discipline and successful outcomes.
+                score=round(min(100,(contact_rate*0.25)+(min(100,connected*100/max(calls,1))*0.20)+(min(100,followup_rate)*0.20)+(success_rate*0.35)),1)
+                out.append({'id':uid,'name':name,'email':email,'role':role,'assigned_leads':assigned,'calls':calls,'contacts':contacts,'connected':connected,'interested':interested,'followups':followups,'converted':converted_calls,'success':success,'failure':failures,'contact_rate':contact_rate,'conversion_rate':success_rate,'score':score})
+    out.sort(key=lambda x:(-x['score'],-x['converted'],-x['contacts'],-x['calls'],x['name'] or ''))
+    for i,row in enumerate(out,1): row['rank']=i
+    if not is_admin(current_user):
+        own_row=next((r for r in out if r['id']==current_user['id']), None)
+        top5=[r for r in out if r['id']!=current_user['id']][:5]
+        out=sorted(top5 + ([own_row] if own_row else []), key=lambda x:x['rank'])
+    return {'performance':out,'period':{'date_from':date_from,'date_to':date_to}}
 
 @app.patch("/api/leads/{lead_id}/status")
 def update_status(lead_id:int,req:StatusUpdateRequest,current_user:dict=Depends(get_current_user)):
@@ -2044,13 +2102,13 @@ def update_status(lead_id:int,req:StatusUpdateRequest,current_user:dict=Depends(
 
 @app.patch("/api/leads/{lead_id}/assignment")
 def assign_lead(lead_id:int,req:AssignmentRequest,current_user:dict=Depends(get_current_user)):
-    require_admin(current_user)
+    if not is_admin(current_user): raise HTTPException(status_code=403,detail="Only Admin can assign leads.")
     with db_conn() as conn:
         with conn.cursor() as cur:
             lead_owner_check(cur,lead_id,current_user,True)
             if req.assigned_to is not None:
-                cur.execute("SELECT id FROM users WHERE id=%s",(req.assigned_to,));
-                if not cur.fetchone(): raise HTTPException(status_code=404,detail="Team member not found.")
+                cur.execute("SELECT id FROM users WHERE id=%s AND COALESCE(active,TRUE)=TRUE",(req.assigned_to,))
+                if not cur.fetchone(): raise HTTPException(status_code=404,detail="Team member not found or outside your team.")
             cur.execute("UPDATE leads SET assigned_to=%s,updated_at=NOW() WHERE id=%s",(req.assigned_to,lead_id)); log_activity(cur,current_user["id"],lead_id,"assigned",{"assigned_to":req.assigned_to})
         conn.commit()
     return {"success":True,"lead_id":lead_id,"assigned_to":req.assigned_to}
@@ -2299,7 +2357,7 @@ def export_group_excel(group_id:int,current_user:dict=Depends(get_current_user))
             cur.execute("""SELECT l.name,l.phone,l.email,l.address,l.city,l.region,l.country,l.website,l.instagram,l.facebook,l.twitter,l.rating,l.reviews,l.category,l.lead_score,l.lead_type,l.ai_recommendation,l.ai_reason,l.status,l.assigned_to,l.last_contacted_date,l.next_followup_date,l.source,l.maps_url,l.notes,c.call_outcome,c.notes FROM leads l JOIN group_leads gl ON gl.lead_id=l.id LEFT JOIN LATERAL (SELECT call_outcome,notes FROM call_logs WHERE lead_id=l.id ORDER BY call_date DESC,id DESC LIMIT 1)c ON TRUE WHERE gl.group_id=%s AND """+scope+" ORDER BY l.created_at DESC",(group_id,*params))
             rows=cur.fetchall()
     wb=Workbook(); ws=wb.active; ws.title="Group Leads"; ws.append(EXPORT_HEADERS)
-    for row in rows: ws.append(row)
+    for row in rows: ws.append([excel_safe_value(v) for v in row])
     ws.freeze_panes="A2"; ws.auto_filter.ref=ws.dimensions
     for col in ws.columns:
         width=min(max(max(len(str(c.value or "")) for c in col)+2,12),45); ws.column_dimensions[col[0].column_letter].width=width
@@ -2329,6 +2387,40 @@ def get_group_leads(group_id: int, current_user: dict = Depends(get_current_user
     return {"leads": [row_to_lead(r) for r in rows]}
 
 # ============================================================
+
+class AIResearchRequest(BaseModel):
+    query: str = Field(min_length=2,max_length=200)
+    city: Optional[str] = Field(None,max_length=120)
+    lead_id: Optional[int] = None
+
+def _ai_research_prompt(query,city,lead,snippets):
+    return f"""Act as a practical B2B sales research assistant. Use only the supplied lead data and public search snippets. Never invent facts. Business/query: {query}. City: {city or 'unknown'}. Lead data: {json.dumps(lead or {},default=str)[:8000]}. Search snippets: {json.dumps(snippets,default=str)[:12000]}. Return ONLY JSON with keys business_summary, likely_needs, recommended_offer, contact_strategy, opening_pitch, talking_points, risks_or_unknowns, next_action. Make it concise and directly useful to an agent."""
+
+@app.post('/api/ai-research')
+def ai_research(req:AIResearchRequest,current_user:dict=Depends(get_current_user)):
+    lead=None
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            if req.lead_id is not None:
+                lead_owner_check(cur,req.lead_id,current_user)
+                cur.execute(LEAD_SELECT+' WHERE id=%s',(req.lead_id,)); r=cur.fetchone(); lead=row_to_lead(r) if r else None
+    snippets=[]
+    if SERPAPI_API_KEY:
+        try:
+            data=serpapi_get({'engine':'google','q':f"{req.query} {req.city or ''}",'hl':'en','gl':'in'},timeout=15)
+            snippets=[{'title':x.get('title'),'snippet':x.get('snippet'),'link':x.get('link')} for x in (data.get('organic_results') or [])[:8]]
+        except Exception: pass
+    result={}
+    if GEMINI_API_KEY:
+        try:
+            url=f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+            r=requests.post(url,json={'contents':[{'parts':[{'text':_ai_research_prompt(req.query,req.city,lead,snippets)}]}]},timeout=20)
+            if r.status_code==200:
+                text=r.json()['candidates'][0]['content']['parts'][0]['text'].strip(); text=re.sub(r'^```(?:json)?\s*|\s*```$','',text,flags=re.I); result=json.loads(text)
+        except Exception: result={}
+    if not result:
+        result={'business_summary':lead.get('name') if lead else req.query,'likely_needs':['Verify current online presence and lead-generation needs before outreach.'],'recommended_offer':'Start with a short discovery/audit conversation based on verified gaps.','contact_strategy':'Use a concise, specific opener and ask one discovery question.','opening_pitch':'Hi, I was looking at your business presence and wanted to ask one quick question about how you currently generate new customers.','talking_points':['Current lead generation','Website and online presence','Customer acquisition challenges'],'risks_or_unknowns':['Public information was limited; verify facts before making claims.'],'next_action':'Verify the key facts and contact the lead.'}
+    return {'success':True,'query':req.query,'city':req.city,'lead':lead,'sources':snippets,'research':result}
 
 # Search history / export / health
 
@@ -2369,8 +2461,9 @@ def _export_lead_rows(current_user:dict,lead_ids:Optional[str]=None,has_website:
     for val,col in [(category,'category'),(city,'city'),(source,'source'),(status,'status')]:
         if val: clauses.append(f"{col} ILIKE %s"); params.append(f"%{val}%")
     if assigned_to is not None: clauses.append("assigned_to=%s"); params.append(assigned_to)
-    if date_from: clauses.append("l.created_at >= %s::date"); params.append(date_from)
-    if date_to: clauses.append("l.created_at < (%s::date + INTERVAL '1 day')"); params.append(date_to)
+    start_utc, end_utc = local_date_range_utc(date_from, date_to)
+    if start_utc is not None: clauses.append("l.created_at >= %s"); params.append(start_utc)
+    if end_utc is not None: clauses.append("l.created_at < %s"); params.append(end_utc)
     sql="SELECT l.name,l.phone,l.email,l.address,l.city,l.region,l.country,l.website,l.instagram,l.facebook,l.twitter,l.rating,l.reviews,l.category,l.lead_score,l.lead_type,l.ai_recommendation,l.ai_reason,l.status,l.assigned_to,l.last_contacted_date,l.next_followup_date,l.source,l.maps_url,l.notes,c.call_outcome,c.notes FROM leads l LEFT JOIN LATERAL (SELECT call_outcome,notes FROM call_logs WHERE lead_id=l.id ORDER BY call_date DESC,id DESC LIMIT 1) c ON TRUE WHERE "+" AND ".join(clauses)+" ORDER BY l.created_at DESC"
     with db_conn() as conn:
         with conn.cursor() as cur: cur.execute(sql,params); return cur.fetchall()
@@ -2383,7 +2476,7 @@ def export_rows(current_user,**kwargs): return _export_lead_rows(current_user,**
 def export_excel(lead_ids:Optional[str]=None,has_website:Optional[bool]=None,has_phone:Optional[bool]=None,has_email:Optional[bool]=None,has_social:Optional[bool]=None,min_score:Optional[int]=Query(None,ge=0,le=100),lead_type:Optional[str]=None,min_rating:Optional[float]=Query(None,ge=0,le=5),category:Optional[str]=None,city:Optional[str]=None,source:Optional[str]=None,status:Optional[str]=None,assigned_to:Optional[int]=None,date_from:Optional[str]=None,date_to:Optional[str]=None,current_user:dict=Depends(get_current_user)):
     rows=_export_lead_rows(current_user,lead_ids,has_website,has_phone,has_email,has_social,min_score,lead_type,min_rating,category,city,source,status,assigned_to,date_from,date_to)
     wb=Workbook(); ws=wb.active; ws.title="Leads"; ws.append(EXPORT_HEADERS)
-    for row in rows: ws.append(row)
+    for row in rows: ws.append([excel_safe_value(v) for v in row])
     buffer=BytesIO(); wb.save(buffer); buffer.seek(0)
     return StreamingResponse(buffer,media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",headers={"Content-Disposition":"attachment; filename=leads_export.xlsx"})
 
