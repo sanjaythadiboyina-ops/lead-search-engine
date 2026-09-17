@@ -183,3 +183,6 @@ async function saveRole(id){const role=$(`role-${id}`)?.value;const qs=new URLSe
 async function syncSheets(){try{const d=await api('/api/google-sheets/sync',{method:'POST'});toast(d.message||'Google Sheets synced')}catch(e){toast(e.message,true)}}
 (async()=>{if(token){await startApp()}})();
 </script></body></html>
+       
+
+MS
