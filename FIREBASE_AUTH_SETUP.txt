@@ -1,0 +1,27 @@
+LEAD SEARCH ENGINE — FIREBASE AUTH SETUP
+
+1. Replace your current backend/main.py with the provided main.py.
+2. Replace your current frontend/index.html with the provided frontend.html (rename it to index.html).
+3. In your existing .env, ADD this line:
+
+FIREBASE_API_KEY=PASTE_THE_apiKey_FROM_YOUR_FIREBASE_WEB_APP_CONFIG_HERE
+
+Use the apiKey shown in Firebase Project Settings -> Your apps -> Lead Search Engine Web.
+
+DO NOT remove any of your existing .env keys.
+
+AUTH BEHAVIOUR ADDED
+- Email/password signup -> Firebase account + local Agent record -> Pending Admin approval.
+- Google signup/login -> Pending until Admin approval for new Agents.
+- Phone OTP signup/login -> Pending until Admin approval for new Agents.
+- Email forgot password -> Firebase reset email.
+- Phone recovery -> Phone OTP login/recovery.
+- Admin account remains on the existing secure local JWT login.
+- Admin can approve pending Agents from Admin -> Agent Management.
+- Existing approved accounts remain approved.
+- Existing lead search, leads, groups, AI Research, exports, dashboard and Google Sheets routes are preserved.
+
+IMPORTANT
+- Do not paste your JWT secret, database password, or other private secrets into the frontend.
+- Firebase Web API keys are public client configuration; the backend still needs FIREBASE_API_KEY in .env for token verification.
+- Phone OTP is subject to Firebase's SMS quota/billing rules.

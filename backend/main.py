@@ -41,7 +41,7 @@ from fastapi import FastAPI, HTTPException, Depends, Header, Query
 
 from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 
 from openpyxl import Workbook
 
@@ -74,6 +74,7 @@ LATLNG_API_KEY = os.getenv("LATLNG_API_KEY")
 SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+FIREBASE_API_KEY = os.getenv("FIREBASE_API_KEY")
 
 JWT_EXPIRE_HOURS = int(os.getenv("JWT_EXPIRE_HOURS", "168"))
 
@@ -172,11 +173,44 @@ def lead_owner_check(cur, lead_id: int, user: dict, for_update: bool = False):
     return row
 
 
+def _notification_text(cur, user_id: int, lead_id: Optional[int], action: str, details: Optional[dict] = None):
+    details = details or {}
+    cur.execute("SELECT name,email,COALESCE(role,'Agent') FROM users WHERE id=%s", (user_id,))
+    actor = cur.fetchone()
+    actor_name = (actor[0] if actor and actor[0] else actor[1] if actor else None) or 'Agent'
+    lead_name = None
+    if lead_id is not None:
+        cur.execute("SELECT name FROM leads WHERE id=%s", (lead_id,))
+        row = cur.fetchone()
+        lead_name = row[0] if row else None
+    label = action.replace('_', ' ').strip().capitalize()
+    title = f"{actor_name} · {label}"
+    message = f"{actor_name} {label.lower()}" + (f" for {lead_name}" if lead_name else "") + "."
+    if action in ('status_changed','bulk_status_changed') and details.get('status'):
+        message = f"{actor_name} changed {lead_name or 'a lead'} status to {details['status']}."
+    elif action == 'call_logged' and details.get('outcome'):
+        message = f"{actor_name} logged a call for {lead_name or 'a lead'}: {details['outcome']}."
+    elif action == 'followup_changed' and details.get('next_followup_date'):
+        message = f"{actor_name} scheduled a follow-up for {lead_name or 'a lead'}."
+    elif action == 'notes_changed':
+        message = f"{actor_name} updated notes for {lead_name or 'a lead'}."
+    elif action == 'lead_updated':
+        message = f"{actor_name} updated {lead_name or 'a lead'}."
+    return actor, title, message
+
+def notify_admins_of_agent_activity(cur, user_id: int, lead_id: Optional[int], action: str, details: Optional[dict] = None):
+    actor, title, message = _notification_text(cur, user_id, lead_id, action, details)
+    if not actor or actor[2] != 'Agent': return
+    cur.execute("SELECT id FROM users WHERE role='Admin' AND COALESCE(active,TRUE)=TRUE")
+    for (admin_id,) in cur.fetchall():
+        cur.execute("INSERT INTO notifications(recipient_id,actor_id,lead_id,notification_type,title,message) VALUES(%s,%s,%s,%s,%s,%s)",
+                    (admin_id, user_id, lead_id, 'agent_activity', title, message))
+
 def log_activity(cur, user_id: int, lead_id: Optional[int], action: str, details: Optional[dict] = None):
-    cur.execute(
-        "INSERT INTO activity_logs(user_id,lead_id,action,details) VALUES(%s,%s,%s,%s::jsonb)",
-        (user_id, lead_id, action, json.dumps(details or {}, default=str)),
-    )
+    details = details or {}
+    cur.execute("INSERT INTO activity_logs(user_id,lead_id,action,details) VALUES(%s,%s,%s,%s::jsonb)",
+                (user_id, lead_id, action, json.dumps(details, default=str)))
+    notify_admins_of_agent_activity(cur, user_id, lead_id, action, details)
 
 
 def whatsapp_url(phone: Optional[str]) -> Optional[str]:
@@ -314,7 +348,7 @@ def init_db():
 
                 password_hash TEXT NOT NULL, salt TEXT NOT NULL,
 
-                created_at TIMESTAMPTZ DEFAULT NOW(), role TEXT DEFAULT 'Agent', team_leader_id INTEGER REFERENCES users(id) ON DELETE SET NULL, active BOOLEAN DEFAULT TRUE)""")
+                created_at TIMESTAMPTZ DEFAULT NOW(), role TEXT DEFAULT 'Agent', team_leader_id INTEGER REFERENCES users(id) ON DELETE SET NULL, active BOOLEAN DEFAULT TRUE, firebase_uid TEXT, phone TEXT, approval_status TEXT DEFAULT 'Approved', auth_provider TEXT DEFAULT 'password')""")
 
             _add_columns(cur, "users", {
 
@@ -328,6 +362,10 @@ def init_db():
                 "role": "ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'Agent'",
                 "team_leader_id": "ALTER TABLE users ADD COLUMN team_leader_id INTEGER REFERENCES users(id) ON DELETE SET NULL",
                 "active": "ALTER TABLE users ADD COLUMN active BOOLEAN DEFAULT TRUE",
+                "firebase_uid": "ALTER TABLE users ADD COLUMN firebase_uid TEXT",
+                "phone": "ALTER TABLE users ADD COLUMN phone TEXT",
+                "approval_status": "ALTER TABLE users ADD COLUMN approval_status TEXT DEFAULT 'Approved'",
+                "auth_provider": "ALTER TABLE users ADD COLUMN auth_provider TEXT DEFAULT 'password'",
 
             })
 
@@ -479,12 +517,25 @@ def init_db():
                 id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                 lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE, action TEXT NOT NULL,
                 details JSONB DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ DEFAULT NOW())""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS notifications (
+                id SERIAL PRIMARY KEY, recipient_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                actor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                lead_id INTEGER REFERENCES leads(id) ON DELETE SET NULL,
+                notification_type TEXT NOT NULL DEFAULT 'activity', title TEXT NOT NULL, message TEXT NOT NULL,
+                is_read BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW())""")
+            cur.execute("CREATE INDEX IF NOT EXISTS notifications_recipient_idx ON notifications(recipient_id,is_read,created_at DESC)")
+            cur.execute("CREATE INDEX IF NOT EXISTS notifications_created_idx ON notifications(created_at DESC)")
             cur.execute("CREATE INDEX IF NOT EXISTS leads_followup_idx ON leads(next_followup_date)")
             cur.execute("CREATE INDEX IF NOT EXISTS activity_logs_lead_created_idx ON activity_logs(lead_id,created_at DESC)")
             cur.execute("CREATE INDEX IF NOT EXISTS call_logs_lead_date_idx ON call_logs(lead_id,call_date DESC)")            # Ensure legacy leads remain visible to their original creator.
             cur.execute("UPDATE leads SET assigned_to=user_id WHERE assigned_to IS NULL AND user_id IS NOT NULL")
             # Never auto-promote signup users; Admin is created explicitly.
             cur.execute("UPDATE users SET role='Agent' WHERE COALESCE(role,'Agent') NOT IN ('Admin','Agent')")
+            cur.execute("UPDATE users SET approval_status='Approved' WHERE approval_status IS NULL OR approval_status=''")
+            cur.execute("UPDATE users SET auth_provider='password' WHERE auth_provider IS NULL OR auth_provider=''")
+            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_firebase_uid_uq ON users(firebase_uid) WHERE firebase_uid IS NOT NULL")
+            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_phone_uq ON users(phone) WHERE phone IS NOT NULL")
+            cur.execute("ALTER TABLE users ALTER COLUMN email DROP NOT NULL")
 
         conn.commit()
 
@@ -584,7 +635,7 @@ def get_current_user(authorization: Optional[str] = Header(None)):
 
         with conn.cursor() as cur:
 
-            cur.execute("SELECT id, email, name, COALESCE(role, 'Agent'), team_leader_id, COALESCE(active, TRUE) FROM users WHERE id=%s", (user_id,))
+            cur.execute("SELECT id, email, name, COALESCE(role, 'Agent'), team_leader_id, COALESCE(active, TRUE), COALESCE(approval_status, 'Approved'), phone, COALESCE(auth_provider, 'password') FROM users WHERE id=%s", (user_id,))
 
             user = cur.fetchone()
 
@@ -594,7 +645,9 @@ def get_current_user(authorization: Optional[str] = Header(None)):
 
     if not user[5]:
         raise HTTPException(status_code=403, detail="This account is disabled. Contact the Admin.")
-    return {"id": user[0], "email": user[1], "name": user[2], "role": user[3], "team_leader_id": user[4]}
+    if user[6] != "Approved" and user[3] != "Admin":
+        raise HTTPException(status_code=403, detail="Your account is pending Admin approval.")
+    return {"id": user[0], "email": user[1], "name": user[2], "role": user[3], "team_leader_id": user[4], "approval_status": user[6], "phone": user[7], "auth_provider": user[8]}
 
 # ============================================================
 
@@ -615,6 +668,12 @@ class LoginRequest(BaseModel):
     email: str
 
     password: str
+
+class FirebaseAuthRequest(BaseModel):
+    id_token: str = Field(min_length=20, max_length=10000)
+    name: Optional[str] = Field(None, max_length=200)
+    phone: Optional[str] = Field(None, max_length=50)
+    auth_provider: str = Field(default="firebase", max_length=30)
 
 class AdminAgentCreateRequest(BaseModel):
     email: str
@@ -735,7 +794,7 @@ def signup(req: SignupRequest):
                     raise HTTPException(status_code=400, detail="An account with this email already exists.")
 
                 role = "Agent"
-                cur.execute("INSERT INTO users(email,name,password_hash,salt,role,active) VALUES(%s,%s,%s,%s,%s,TRUE) RETURNING id", (email, name or None, password_hash, salt, role))
+                cur.execute("INSERT INTO users(email,name,password_hash,salt,role,active,approval_status,auth_provider) VALUES(%s,%s,%s,%s,%s,FALSE,'Pending','password') RETURNING id", (email, name or None, password_hash, salt, role))
 
                 user_id = cur.fetchone()[0]
 
@@ -751,7 +810,7 @@ def signup(req: SignupRequest):
 
         raise HTTPException(status_code=500, detail=f"Signup database error: {type(exc).__name__}.")
 
-    return {"token": create_token(user_id, email), "user": {"id": user_id, "email": email, "name": name, "role": role}}
+    return {"pending": True, "message": "Account created. Wait for Admin approval before logging in.", "user": {"id": user_id, "email": email, "name": name, "role": role, "approval_status": "Pending"}}
 
 @app.post("/api/login")
 
@@ -765,7 +824,7 @@ def login(req: LoginRequest):
 
             with conn.cursor() as cur:
 
-                cur.execute("SELECT id,email,name,password_hash,salt,COALESCE(role, 'Agent'),team_leader_id,COALESCE(active, TRUE) FROM users WHERE email=%s", (email,))
+                cur.execute("SELECT id,email,name,password_hash,salt,COALESCE(role, 'Agent'),team_leader_id,COALESCE(active, TRUE),COALESCE(approval_status, 'Approved'),phone,COALESCE(auth_provider, 'password') FROM users WHERE email=%s", (email,))
 
                 user = cur.fetchone()
 
@@ -778,8 +837,76 @@ def login(req: LoginRequest):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
     if not user[7]:
         raise HTTPException(status_code=403, detail="This account is disabled. Contact the Admin.")
+    if user[8] != "Approved" and user[5] != "Admin":
+        raise HTTPException(status_code=403, detail="Your account is pending Admin approval.")
 
-    return {"token": create_token(user[0], user[1]), "user": {"id": user[0], "email": user[1], "name": user[2], "role": user[5], "team_leader_id": user[6]}}
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            log_activity(cur, user[0], None, "logged_in", {})
+        conn.commit()
+    return {"token": create_token(user[0], user[1]), "user": {"id": user[0], "email": user[1], "name": user[2], "role": user[5], "team_leader_id": user[6], "approval_status": user[8], "phone": user[9], "auth_provider": user[10]}}
+
+def verify_firebase_id_token(id_token: str) -> dict:
+    if not FIREBASE_API_KEY:
+        raise HTTPException(status_code=503, detail="Firebase authentication is not configured on the server.")
+    try:
+        r = requests.post(
+            "https://identitytoolkit.googleapis.com/v1/accounts:lookup",
+            params={"key": FIREBASE_API_KEY},
+            json={"idToken": id_token},
+            timeout=15,
+        )
+    except requests.RequestException:
+        raise HTTPException(status_code=502, detail="Firebase authentication service is temporarily unavailable.")
+    if r.status_code != 200:
+        raise HTTPException(status_code=401, detail="Firebase authentication failed. Please sign in again.")
+    try:
+        users = r.json().get("users") or []
+    except Exception:
+        users = []
+    if not users:
+        raise HTTPException(status_code=401, detail="Firebase account could not be verified.")
+    return users[0]
+
+@app.post("/api/auth/firebase-sync")
+def firebase_sync(req: FirebaseAuthRequest):
+    info = verify_firebase_id_token(req.id_token)
+    firebase_uid = str(info.get("localId") or "").strip()
+    email = (info.get("email") or "").strip().lower() or None
+    phone = (info.get("phoneNumber") or req.phone or "").strip() or None
+    name = (req.name or info.get("displayName") or "").strip() or None
+    provider = (req.auth_provider or "firebase").strip().lower()
+    if not firebase_uid:
+        raise HTTPException(status_code=401, detail="Firebase account is missing a user ID.")
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT id,email,name,COALESCE(role,'Agent'),COALESCE(active,TRUE),COALESCE(approval_status,'Approved'),phone
+                           FROM users WHERE firebase_uid=%s OR lower(email)=lower(%s::text) OR phone=%s
+                           ORDER BY CASE WHEN COALESCE(role,'Agent')='Admin' THEN 0 ELSE 1 END LIMIT 1""", (firebase_uid,email,phone))
+            existing = cur.fetchone()
+            if existing and existing[3] == "Admin":
+                raise HTTPException(status_code=403, detail="The Admin account uses the secure email/password login.")
+            if existing:
+                uid = existing[0]
+                if not existing[4]:
+                    raise HTTPException(status_code=403, detail="This account is disabled. Contact the Admin.")
+                approval = existing[5]
+                cur.execute("UPDATE users SET firebase_uid=%s,phone=COALESCE(%s,phone),auth_provider=%s,name=COALESCE(%s,name) WHERE id=%s", (firebase_uid,phone,provider,name,uid))
+            else:
+                cur.execute("""INSERT INTO users(email,name,password_hash,salt,role,active,firebase_uid,phone,approval_status,auth_provider)
+                               VALUES(%s,%s,'','', 'Agent', FALSE,%s,%s,'Pending',%s) RETURNING id""", (email,name,firebase_uid,phone,provider))
+                uid = cur.fetchone()[0]
+                approval = "Pending"
+                log_activity(cur,uid,None,"account_pending_approval",{"auth_provider":provider})
+            conn.commit()
+    if approval != "Approved":
+        raise HTTPException(status_code=403, detail="Account created successfully. Wait for Admin approval before logging in.")
+    login_email = email or f"firebase:{firebase_uid}"
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            log_activity(cur, uid, None, "logged_in", {"auth_provider": provider})
+        conn.commit()
+    return {"token": create_token(uid, login_email), "user": {"id":uid,"email":email,"name":name,"role":"Agent","approval_status":"Approved","phone":phone,"auth_provider":provider}}
 
 @app.get("/api/me")
 
@@ -1833,6 +1960,7 @@ def search(req: SearchRequest, current_user: dict = Depends(get_current_user)):
                 cur.execute("""INSERT INTO search_history(user_id,city,category,keyword,city_wide,result_count,sources_used)
                                VALUES(%s,%s,%s,%s,%s,%s,%s::jsonb)""",
                             (current_user["id"], location["resolved_city"], category, keyword, req.city_wide, len(saved), json.dumps(used_sources)))
+                log_activity(cur, current_user["id"], None, "lead_search", {"city": city, "category": category, "keyword": keyword, "result_count": len(saved)})
             conn.commit()
     else:
         for lead in leads:
@@ -1912,10 +2040,10 @@ def admin_list_agents(current_user:dict=Depends(get_current_user)):
     require_admin(current_user)
     with db_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("""SELECT id,email,name,COALESCE(role,'Agent'),COALESCE(active,TRUE),created_at
+            cur.execute("""SELECT id,email,name,COALESCE(role,'Agent'),COALESCE(active,TRUE),created_at,COALESCE(approval_status,'Approved'),phone,COALESCE(auth_provider,'password')
                            FROM users ORDER BY CASE WHEN role='Admin' THEN 0 ELSE 1 END,name NULLS LAST,email""")
             rows=cur.fetchall()
-    return {"agents":[{"id":r[0],"email":r[1],"name":r[2],"role":r[3],"active":r[4],"created_at":str(r[5]) if r[5] else None} for r in rows]}
+    return {"agents":[{"id":r[0],"email":r[1],"name":r[2],"role":r[3],"active":r[4],"created_at":str(r[5]) if r[5] else None,"approval_status":r[6],"phone":r[7],"auth_provider":r[8]} for r in rows]}
 
 @app.post("/api/admin/agents")
 def admin_create_agent(req:AdminAgentCreateRequest,current_user:dict=Depends(get_current_user)):
@@ -1931,8 +2059,8 @@ def admin_create_agent(req:AdminAgentCreateRequest,current_user:dict=Depends(get
                 cur.execute("SELECT id FROM users WHERE lower(email)=lower(%s)",(email,))
                 if cur.fetchone():
                     raise HTTPException(status_code=400,detail="An account with this email already exists.")
-                cur.execute("""INSERT INTO users(email,name,password_hash,salt,role,team_leader_id,active)
-                               VALUES(%s,%s,%s,%s,'Agent',NULL,TRUE) RETURNING id""",
+                cur.execute("""INSERT INTO users(email,name,password_hash,salt,role,team_leader_id,active,approval_status,auth_provider)
+                               VALUES(%s,%s,%s,%s,'Agent',NULL,TRUE,'Approved','password') RETURNING id""",
                             (email,name or None,password_hash,salt))
                 agent_id=cur.fetchone()[0]
                 log_activity(cur,current_user["id"],None,"agent_created",{"agent_id":agent_id,"email":email})
@@ -1969,6 +2097,8 @@ def admin_update_agent(user_id:int,req:AdminAgentUpdateRequest,current_user:dict
                 sets.extend(["password_hash=%s","salt=%s"]); vals.extend([ph,salt])
             if "active" in data and data["active"] is not None:
                 sets.append("active=%s"); vals.append(bool(data["active"]))
+                if data["active"]:
+                    sets.append("approval_status=%s"); vals.append("Approved")
             if not sets:
                 raise HTTPException(status_code=400,detail="No changes supplied.")
             vals.append(user_id)
@@ -1980,6 +2110,20 @@ def admin_update_agent(user_id:int,req:AdminAgentUpdateRequest,current_user:dict
         conn.commit()
     return {"success":True,"user_id":user_id}
 
+
+@app.post("/api/admin/agents/{user_id}/approve")
+def admin_approve_agent(user_id:int,current_user:dict=Depends(get_current_user)):
+    require_admin(current_user)
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id,COALESCE(role,'Agent'),COALESCE(active,TRUE) FROM users WHERE id=%s",(user_id,))
+            target=cur.fetchone()
+            if not target: raise HTTPException(status_code=404,detail="Account not found.")
+            if target[1]=='Admin': raise HTTPException(status_code=400,detail="The Admin account is already approved.")
+            cur.execute("UPDATE users SET approval_status='Approved',active=TRUE WHERE id=%s",(user_id,))
+            log_activity(cur,current_user['id'],None,'agent_approved',{'user_id':user_id})
+        conn.commit()
+    return {"success":True,"user_id":user_id,"approval_status":"Approved","active":True}
 
 @app.post("/api/admin/agents/{user_id}/reset-password")
 def admin_reset_agent_password(user_id:int, req:AdminResetPasswordRequest, current_user:dict=Depends(get_current_user)):
@@ -2020,9 +2164,9 @@ def team_members(current_user: dict=Depends(get_current_user)):
     scope,params=accessible_user_clause(current_user,"u")
     with db_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT u.id,u.email,u.name,COALESCE(u.role,'Agent'),u.team_leader_id,t.name FROM users u LEFT JOIN users t ON t.id=u.team_leader_id WHERE "+scope+" ORDER BY u.name NULLS LAST,u.email",params)
+            cur.execute("SELECT u.id,u.email,u.name,COALESCE(u.role,'Agent'),u.team_leader_id,t.name,COALESCE(u.active,TRUE),COALESCE(u.approval_status,'Approved'),COALESCE(u.auth_provider,'password'),u.phone FROM users u LEFT JOIN users t ON t.id=u.team_leader_id WHERE "+scope+" ORDER BY u.name NULLS LAST,u.email",params)
             rows=cur.fetchall()
-    return {"team_members":[{"id":r[0],"email":r[1],"name":r[2],"role":r[3],"team_leader_id":r[4],"team_leader_name":r[5]} for r in rows]}
+    return {"team_members":[{"id":r[0],"email":r[1],"name":r[2],"role":r[3],"team_leader_id":r[4],"team_leader_name":r[5],"active":r[6],"approval_status":r[7],"auth_provider":r[8],"phone":r[9]} for r in rows]}
 
 @app.patch("/api/team-members/{user_id}/role")
 def update_team_member_role(user_id:int, role:str, current_user:dict=Depends(get_current_user)):
@@ -2030,6 +2174,8 @@ def update_team_member_role(user_id:int, role:str, current_user:dict=Depends(get
     role=role.strip().title()
     if role not in VALID_ROLES:
         raise HTTPException(status_code=400, detail="Role must be Admin or Agent.")
+    if role == "Admin":
+        raise HTTPException(status_code=400, detail="There must be exactly one separate Admin account.")
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id,COALESCE(role,'Agent') FROM users WHERE id=%s",(user_id,))
@@ -2086,7 +2232,9 @@ def agent_performance(date_from:Optional[str]=None,date_to:Optional[str]=None,cu
                 own=cur.fetchone()
                 cur.execute("SELECT u.id,u.name,u.email,COALESCE(u.role,'Agent') FROM users u WHERE COALESCE(u.active,TRUE)=TRUE AND COALESCE(u.role,'Agent')='Agent' AND u.id<>%s ORDER BY u.name NULLS LAST,u.id", (current_user["id"],))
                 others=cur.fetchall()
-                users=list(([own] if own else []) + list(others))
+                cur.execute("SELECT u.id,u.name,u.email,COALESCE(u.role,'Agent') FROM users u WHERE COALESCE(u.active,TRUE)=TRUE AND COALESCE(u.role,'Agent')='Admin' ORDER BY u.id LIMIT 1")
+                admins=cur.fetchall()
+                users=list(admins + ([own] if own else []) + list(others))
             out=[]
             for uid,name,email,role in users:
                 lw=['assigned_to=%s']; lp=[uid]
@@ -2109,9 +2257,13 @@ def agent_performance(date_from:Optional[str]=None,date_to:Optional[str]=None,cu
     out.sort(key=lambda x:(-x['score'],-x['converted'],-x['contacts'],-x['calls'],x['name'] or ''))
     for i,row in enumerate(out,1): row['rank']=i
     if not is_admin(current_user):
+        admin_rows=[r for r in out if r['role']=='Admin']
         own_row=next((r for r in out if r['id']==current_user['id']), None)
-        top5=[r for r in out if r['id']!=current_user['id']][:5]
-        out=sorted(top5 + ([own_row] if own_row else []), key=lambda x:x['rank'])
+        top5=[r for r in out if r['role']=='Agent' and r['id']!=current_user['id']][:5]
+        selected=admin_rows + top5 + ([own_row] if own_row else [])
+        for r in selected:
+            if r['role']=='Admin': r['rank']=0
+        out=sorted(selected, key=lambda x:(0 if x['role']=='Admin' else 1, x['rank']))
     return {'performance':out,'period':{'date_from':date_from,'date_to':date_to}}
 
 @app.patch("/api/leads/{lead_id}/status")
@@ -2132,7 +2284,12 @@ def assign_lead(lead_id:int,req:AssignmentRequest,current_user:dict=Depends(get_
             if req.assigned_to is not None:
                 cur.execute("SELECT id FROM users WHERE id=%s AND COALESCE(active,TRUE)=TRUE",(req.assigned_to,))
                 if not cur.fetchone(): raise HTTPException(status_code=404,detail="Team member not found or outside your team.")
+            cur.execute("SELECT name FROM leads WHERE id=%s", (lead_id,))
+            lead_row = cur.fetchone()
             cur.execute("UPDATE leads SET assigned_to=%s,updated_at=NOW() WHERE id=%s",(req.assigned_to,lead_id)); log_activity(cur,current_user["id"],lead_id,"assigned",{"assigned_to":req.assigned_to})
+            if req.assigned_to is not None:
+                cur.execute("INSERT INTO notifications(recipient_id,actor_id,lead_id,notification_type,title,message) VALUES(%s,%s,%s,%s,%s,%s)",
+                            (req.assigned_to, current_user["id"], lead_id, 'assignment', 'New lead assigned', f'Admin assigned {lead_row[0] if lead_row else "a lead"} to you.'))
         conn.commit()
     return {"success":True,"lead_id":lead_id,"assigned_to":req.assigned_to}
 
@@ -2201,7 +2358,7 @@ def update_notes(lead_id:int,req:NotesUpdateRequest,current_user:dict=Depends(ge
 def delete_lead(lead_id:int,current_user:dict=Depends(get_current_user)):
     with db_conn() as conn:
         with conn.cursor() as cur:
-            lead_owner_check(cur,lead_id,current_user,True); cur.execute("DELETE FROM leads WHERE id=%s",(lead_id,))
+            lead_owner_check(cur,lead_id,current_user,True); log_activity(cur,current_user["id"],lead_id,"delete_requested",{}); cur.execute("DELETE FROM leads WHERE id=%s",(lead_id,))
         conn.commit()
     return {"success":True}
 
@@ -2229,6 +2386,10 @@ def lead_whatsapp(lead_id:int,current_user:dict=Depends(get_current_user)):
             lead_owner_check(cur,lead_id,current_user); cur.execute("SELECT phone FROM leads WHERE id=%s",(lead_id,)); phone=cur.fetchone()[0]
     url=whatsapp_url(phone)
     if not url: raise HTTPException(status_code=400,detail="Lead has no usable phone number.")
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            log_activity(cur,current_user["id"],lead_id,"whatsapp_opened",{})
+        conn.commit()
     return {"success":True,"whatsapp_url":url,"manual_only":True}
 
 @app.post("/api/leads/bulk")
@@ -2243,10 +2404,13 @@ def bulk_lead_action(req:BulkLeadActionRequest,current_user:dict=Depends(get_cur
             elif action=="assign":
                 require_admin(current_user)
                 if req.assigned_to is None: raise HTTPException(status_code=400,detail="assigned_to is required.")
-                cur.execute("SELECT id FROM users WHERE id=%s",(req.assigned_to,));
+                cur.execute("SELECT id FROM users WHERE id=%s AND COALESCE(active,TRUE)=TRUE AND COALESCE(role,'Agent')='Agent'",(req.assigned_to,));
                 if not cur.fetchone(): raise HTTPException(status_code=404,detail="Team member not found.")
+                cur.execute("SELECT id,name FROM leads WHERE id=ANY(%s)",(ids,)); assign_rows=cur.fetchall()
                 cur.execute("UPDATE leads SET assigned_to=%s,updated_at=NOW() WHERE id=ANY(%s)",(req.assigned_to,ids)); count=cur.rowcount
             elif action=="delete":
+                cur.execute(f"SELECT id FROM leads WHERE id=ANY(%s) AND {scope}",(ids,*params)); delete_rows=cur.fetchall()
+                for (lead_id,) in delete_rows: log_activity(cur,current_user["id"],lead_id,"bulk_delete_requested",{})
                 cur.execute(f"DELETE FROM leads WHERE id=ANY(%s) AND {scope}",(ids,*params)); count=cur.rowcount
             else: raise HTTPException(status_code=400,detail="Unsupported bulk action.")
             if action == "status":
@@ -2254,9 +2418,10 @@ def bulk_lead_action(req:BulkLeadActionRequest,current_user:dict=Depends(get_cur
                 for (lead_id,) in cur.fetchall():
                     log_activity(cur,current_user["id"],lead_id,"bulk_status_changed",{"status":req.status})
             elif action == "assign":
-                cur.execute("SELECT id FROM leads WHERE id=ANY(%s)",(ids,))
-                for (lead_id,) in cur.fetchall():
+                for lead_id,lead_name in assign_rows:
                     log_activity(cur,current_user["id"],lead_id,"bulk_assigned",{"assigned_to":req.assigned_to})
+                    cur.execute("INSERT INTO notifications(recipient_id,actor_id,lead_id,notification_type,title,message) VALUES(%s,%s,%s,%s,%s,%s)",
+                                (req.assigned_to, current_user["id"], lead_id, 'assignment', 'New lead assigned', f'Admin assigned {lead_name or "a lead"} to you.'))
             elif action == "delete":
                 # Deletions cascade activity rows by design; record the action is not possible after the lead is deleted.
                 pass
@@ -2271,6 +2436,38 @@ def activity_log(limit:int=Query(100,ge=1,le=500),lead_id:Optional[int]=None,cur
         with conn.cursor() as cur:
             cur.execute("SELECT a.id,a.user_id,a.lead_id,a.action,a.details,a.created_at,u.name,u.email,l.name FROM activity_logs a LEFT JOIN users u ON u.id=a.user_id LEFT JOIN leads l ON l.id=a.lead_id WHERE "+" AND ".join(where)+" ORDER BY a.created_at DESC LIMIT %s",params+[limit]); rows=cur.fetchall()
     return {"activity":[{"id":r[0],"user_id":r[1],"lead_id":r[2],"action":r[3],"details":r[4] or {},"created_at":str(r[5]),"user_name":r[6],"user_email":r[7],"lead_name":r[8]} for r in rows]}
+
+# Notifications
+
+# ============================================================
+
+@app.get("/api/notifications")
+def get_notifications(limit:int=Query(100,ge=1,le=200), current_user:dict=Depends(get_current_user)):
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT n.id,n.actor_id,n.lead_id,n.notification_type,n.title,n.message,n.is_read,n.created_at,u.name,u.email,l.name
+                       FROM notifications n LEFT JOIN users u ON u.id=n.actor_id LEFT JOIN leads l ON l.id=n.lead_id
+                       WHERE n.recipient_id=%s ORDER BY n.created_at DESC,n.id DESC LIMIT %s""", (current_user["id"],limit))
+            rows=cur.fetchall()
+    return {"notifications":[{"id":r[0],"actor_id":r[1],"lead_id":r[2],"type":r[3],"title":r[4],"message":r[5],"is_read":bool(r[6]),"created_at":str(r[7]),"actor_name":r[8],"actor_email":r[9],"lead_name":r[10]} for r in rows], "unread_count":sum(1 for r in rows if not r[6])}
+
+@app.post("/api/notifications/{notification_id}/read")
+def mark_notification_read(notification_id:int,current_user:dict=Depends(get_current_user)):
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE notifications SET is_read=TRUE WHERE id=%s AND recipient_id=%s",(notification_id,current_user["id"]))
+            if cur.rowcount==0: raise HTTPException(status_code=404,detail="Notification not found.")
+        conn.commit()
+    return {"success":True}
+
+@app.delete("/api/notifications/{notification_id}")
+def delete_notification(notification_id:int,current_user:dict=Depends(get_current_user)):
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM notifications WHERE id=%s AND recipient_id=%s",(notification_id,current_user["id"]))
+            if cur.rowcount==0: raise HTTPException(status_code=404,detail="Notification not found.")
+        conn.commit()
+    return {"success":True}
 
 # Groups
 
@@ -2311,6 +2508,7 @@ def create_group(req: GroupCreateRequest, current_user: dict = Depends(get_curre
             cur.execute("INSERT INTO lead_groups(user_id,name) VALUES(%s,%s) RETURNING id,name,created_at", (current_user["id"], name[:150]))
 
             row = cur.fetchone()
+            log_activity(cur,current_user["id"],None,"group_created",{"group_id":row[0],"name":row[1]})
 
         conn.commit()
 
@@ -2329,6 +2527,7 @@ def add_lead_to_group(group_id: int, req: GroupBulkAddRequest, current_user: dic
                 if cur.fetchone():
                     cur.execute("INSERT INTO group_leads(group_id,lead_id) VALUES(%s,%s) ON CONFLICT DO NOTHING", (group_id, lead_id))
                     added += cur.rowcount
+            log_activity(cur,current_user["id"],None,"group_leads_added",{"group_id":group_id,"count":added})
         conn.commit()
     return {"success": True, "added": added}
 
@@ -2357,6 +2556,8 @@ def add_leads_to_group_bulk(group_id: int, req: GroupBulkAddRequest, current_use
 
                     added += cur.rowcount
 
+            log_activity(cur,current_user["id"],None,"group_leads_added",{"group_id":group_id,"count":added})
+
         conn.commit()
 
     return {"success": True, "added": added}
@@ -2368,6 +2569,7 @@ def remove_lead_from_group(group_id: int, lead_id: int, current_user: dict = Dep
             assert_group_owner(cur, group_id, current_user["id"])
             cur.execute("DELETE FROM group_leads WHERE group_id=%s AND lead_id=%s", (group_id, lead_id))
             removed = cur.rowcount
+            if removed: log_activity(cur,current_user["id"],lead_id,"group_lead_removed",{"group_id":group_id})
         conn.commit()
     return {"success": True, "removed": removed}
 
@@ -2379,6 +2581,10 @@ def export_group_excel(group_id:int,current_user:dict=Depends(get_current_user))
             scope,params=lead_access_clause(current_user,"l")
             cur.execute("""SELECT l.name,l.phone,l.email,l.address,l.city,l.region,l.country,l.website,l.instagram,l.facebook,l.twitter,l.rating,l.reviews,l.category,l.lead_score,l.lead_type,l.ai_recommendation,l.ai_reason,l.status,l.assigned_to,l.last_contacted_date,l.next_followup_date,l.source,l.maps_url,l.notes,c.call_outcome,c.notes FROM leads l JOIN group_leads gl ON gl.lead_id=l.id LEFT JOIN LATERAL (SELECT call_outcome,notes FROM call_logs WHERE lead_id=l.id ORDER BY call_date DESC,id DESC LIMIT 1)c ON TRUE WHERE gl.group_id=%s AND """+scope+" ORDER BY l.created_at DESC",(group_id,*params))
             rows=cur.fetchall()
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            log_activity(cur,current_user["id"],None,"group_exported",{"group_id":group_id})
+        conn.commit()
     wb=Workbook(); ws=wb.active; ws.title="Group Leads"; ws.append(EXPORT_HEADERS)
     for row in rows: ws.append([excel_safe_value(v) for v in row])
     ws.freeze_panes="A2"; ws.auto_filter.ref=ws.dimensions
@@ -2443,6 +2649,10 @@ def ai_research(req:AIResearchRequest,current_user:dict=Depends(get_current_user
         except Exception: result={}
     if not result:
         result={'business_summary':lead.get('name') if lead else req.query,'likely_needs':['Verify current online presence and lead-generation needs before outreach.'],'recommended_offer':'Start with a short discovery/audit conversation based on verified gaps.','contact_strategy':'Use a concise, specific opener and ask one discovery question.','opening_pitch':'Hi, I was looking at your business presence and wanted to ask one quick question about how you currently generate new customers.','talking_points':['Current lead generation','Website and online presence','Customer acquisition challenges'],'risks_or_unknowns':['Public information was limited; verify facts before making claims.'],'next_action':'Verify the key facts and contact the lead.'}
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            log_activity(cur,current_user["id"],req.lead_id,"ai_research_completed",{"query":req.query,"city":req.city})
+        conn.commit()
     return {'success':True,'query':req.query,'city':req.city,'lead':lead,'sources':snippets,'research':result}
 
 # Search history / export / health
@@ -2498,6 +2708,10 @@ def export_rows(current_user,**kwargs): return _export_lead_rows(current_user,**
 @app.get("/api/export-excel")
 def export_excel(lead_ids:Optional[str]=None,has_website:Optional[bool]=None,has_phone:Optional[bool]=None,has_email:Optional[bool]=None,has_social:Optional[bool]=None,min_score:Optional[int]=Query(None,ge=0,le=100),lead_type:Optional[str]=None,min_rating:Optional[float]=Query(None,ge=0,le=5),category:Optional[str]=None,city:Optional[str]=None,source:Optional[str]=None,status:Optional[str]=None,assigned_to:Optional[int]=None,date_from:Optional[str]=None,date_to:Optional[str]=None,current_user:dict=Depends(get_current_user)):
     rows=_export_lead_rows(current_user,lead_ids,has_website,has_phone,has_email,has_social,min_score,lead_type,min_rating,category,city,source,status,assigned_to,date_from,date_to)
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            log_activity(cur,current_user["id"],None,"lead_exported",{"format":"excel" if "export-excel" in __name__ else "export"})
+        conn.commit()
     wb=Workbook(); ws=wb.active; ws.title="Leads"; ws.append(EXPORT_HEADERS)
     for row in rows: ws.append([excel_safe_value(v) for v in row])
     buffer=BytesIO(); wb.save(buffer); buffer.seek(0)
@@ -2506,6 +2720,10 @@ def export_excel(lead_ids:Optional[str]=None,has_website:Optional[bool]=None,has
 @app.get("/api/export-csv")
 def export_csv(lead_ids:Optional[str]=None,has_website:Optional[bool]=None,has_phone:Optional[bool]=None,has_email:Optional[bool]=None,has_social:Optional[bool]=None,min_score:Optional[int]=Query(None,ge=0,le=100),lead_type:Optional[str]=None,min_rating:Optional[float]=Query(None,ge=0,le=5),category:Optional[str]=None,city:Optional[str]=None,source:Optional[str]=None,status:Optional[str]=None,assigned_to:Optional[int]=None,date_from:Optional[str]=None,date_to:Optional[str]=None,current_user:dict=Depends(get_current_user)):
     rows=_export_lead_rows(current_user,lead_ids,has_website,has_phone,has_email,has_social,min_score,lead_type,min_rating,category,city,source,status,assigned_to,date_from,date_to)
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            log_activity(cur,current_user["id"],None,"lead_exported",{"format":"csv"})
+        conn.commit()
     import io; sio=io.StringIO(); writer=csv.writer(sio); writer.writerow(EXPORT_HEADERS)
     for row in rows: writer.writerow(row)
     return StreamingResponse(iter([sio.getvalue().encode('utf-8-sig')]),media_type='text/csv',headers={'Content-Disposition':'attachment; filename=leads_export.csv'})
@@ -2604,4 +2822,4 @@ def health():
 
             pass
 
-    return {"status": "ok" if db_connected else "degraded", "database_configured": bool(DATABASE_URL), "database_connected": db_connected, "latlng_configured": bool(LATLNG_API_KEY), "serpapi_configured": bool(SERPAPI_API_KEY), "gemini_configured": bool(GEMINI_API_KEY), "jwt_configured": bool(JWT_SECRET), "crm_statuses": sorted(VALID_STATUSES), "roles_enabled": True, "followups_enabled": True, "call_logging_enabled": True, "google_sheets_optional": True}
+    return {"status": "ok" if db_connected else "degraded", "database_configured": bool(DATABASE_URL), "database_connected": db_connected, "latlng_configured": bool(LATLNG_API_KEY), "serpapi_configured": bool(SERPAPI_API_KEY), "gemini_configured": bool(GEMINI_API_KEY), "firebase_configured": bool(FIREBASE_API_KEY), "jwt_configured": bool(JWT_SECRET), "crm_statuses": sorted(VALID_STATUSES), "roles_enabled": True, "followups_enabled": True, "call_logging_enabled": True, "google_sheets_optional": True}
