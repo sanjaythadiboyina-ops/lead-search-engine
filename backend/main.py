@@ -525,6 +525,53 @@ def init_db():
                 is_read BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW())""")
             cur.execute("CREATE INDEX IF NOT EXISTS notifications_recipient_idx ON notifications(recipient_id,is_read,created_at DESC)")
             cur.execute("CREATE INDEX IF NOT EXISTS notifications_created_idx ON notifications(created_at DESC)")
+
+            # Internal 1-to-1 chat tables. Existing CRM tables/features are untouched.
+            cur.execute("""CREATE TABLE IF NOT EXISTS chat_conversations (
+                id SERIAL PRIMARY KEY,
+                user1_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                user2_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                last_message_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CONSTRAINT chat_conversations_users_order CHECK (user1_id < user2_id),
+                CONSTRAINT chat_conversations_unique_pair UNIQUE (user1_id, user2_id)
+            )""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS chat_messages (
+                id SERIAL PRIMARY KEY,
+                conversation_id INTEGER NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+                sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                body TEXT NOT NULL,
+                is_read BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )""")
+            cur.execute("CREATE INDEX IF NOT EXISTS chat_conversations_user1_idx ON chat_conversations(user1_id,last_message_at DESC)")
+            cur.execute("CREATE INDEX IF NOT EXISTS chat_conversations_user2_idx ON chat_conversations(user2_id,last_message_at DESC)")
+            cur.execute("CREATE INDEX IF NOT EXISTS chat_messages_conversation_idx ON chat_messages(conversation_id,created_at ASC,id ASC)")
+            cur.execute("CREATE INDEX IF NOT EXISTS chat_messages_unread_idx ON chat_messages(conversation_id,is_read,created_at ASC)")
+            # Shared Team Room: one common room for the whole approved team.
+            cur.execute("""CREATE TABLE IF NOT EXISTS chat_team_room (
+                id INTEGER PRIMARY KEY DEFAULT 1,
+                room_name TEXT NOT NULL DEFAULT 'Team Room',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CONSTRAINT chat_team_room_singleton CHECK (id=1)
+            )""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS chat_team_messages (
+                id SERIAL PRIMARY KEY,
+                room_id INTEGER NOT NULL DEFAULT 1 REFERENCES chat_team_room(id) ON DELETE CASCADE,
+                sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                body TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS chat_team_reads (
+                room_id INTEGER NOT NULL DEFAULT 1 REFERENCES chat_team_room(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                last_read_message_id INTEGER,
+                last_read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (room_id,user_id)
+            )""")
+            cur.execute("INSERT INTO chat_team_room(id,room_name) VALUES(1,'Team Room') ON CONFLICT(id) DO NOTHING")
+            cur.execute("CREATE INDEX IF NOT EXISTS chat_team_messages_room_idx ON chat_team_messages(room_id,created_at ASC,id ASC)")
+            cur.execute("CREATE INDEX IF NOT EXISTS chat_team_reads_user_idx ON chat_team_reads(user_id,room_id)")
             cur.execute("CREATE INDEX IF NOT EXISTS leads_followup_idx ON leads(next_followup_date)")
             cur.execute("CREATE INDEX IF NOT EXISTS activity_logs_lead_created_idx ON activity_logs(lead_id,created_at DESC)")
             cur.execute("CREATE INDEX IF NOT EXISTS call_logs_lead_date_idx ON call_logs(lead_id,call_date DESC)")            # Ensure legacy leads remain visible to their original creator.
@@ -756,6 +803,12 @@ class GroupCreateRequest(BaseModel):
 class GroupBulkAddRequest(BaseModel):
 
     lead_ids: List[int]
+
+class ChatStartRequest(BaseModel):
+    user_id: int = Field(gt=0)
+
+class ChatMessageRequest(BaseModel):
+    body: str = Field(min_length=1, max_length=5000)
 
 # ============================================================
 
@@ -2468,6 +2521,346 @@ def delete_notification(notification_id:int,current_user:dict=Depends(get_curren
             if cur.rowcount==0: raise HTTPException(status_code=404,detail="Notification not found.")
         conn.commit()
     return {"success":True}
+
+# Internal Chat
+
+# ============================================================
+
+def _chat_user_is_available(cur, user_id: int) -> bool:
+    """Only active, approved accounts can participate in internal chat."""
+    cur.execute("""SELECT id,COALESCE(role,'Agent'),COALESCE(active,TRUE),COALESCE(approval_status,'Approved')
+                   FROM users WHERE id=%s""", (user_id,))
+    row = cur.fetchone()
+    if not row:
+        return False
+    return bool(row[2]) and (row[3] == "Approved" or row[1] == "Admin")
+
+
+def _chat_pair(user_a: int, user_b: int):
+    if user_a == user_b:
+        raise HTTPException(status_code=400, detail="You cannot start a chat with yourself.")
+    return (min(user_a, user_b), max(user_a, user_b))
+
+
+def _chat_access_clause(current_user: dict, alias: str = "c"):
+    prefix = f"{alias}." if alias else ""
+    return f"({prefix}user1_id=%s OR {prefix}user2_id=%s)", [current_user["id"], current_user["id"]]
+
+
+def _chat_conversation_row(cur, conversation_id: int):
+    cur.execute("""SELECT c.id,c.user1_id,c.user2_id,c.created_at,c.last_message_at,
+                          u1.name,u1.email,u1.role,u1.active,u1.approval_status,
+                          u2.name,u2.email,u2.role,u2.active,u2.approval_status
+                   FROM chat_conversations c
+                   JOIN users u1 ON u1.id=c.user1_id
+                   JOIN users u2 ON u2.id=c.user2_id
+                   WHERE c.id=%s""", (conversation_id,))
+    return cur.fetchone()
+
+
+def _chat_user_payload(row):
+    return {
+        "id": row[0],
+        "name": row[1],
+        "email": row[2],
+        "role": row[3],
+        "active": bool(row[4]),
+        "approval_status": row[5],
+    }
+
+
+@app.get("/api/chat/users")
+def chat_users(current_user: dict = Depends(get_current_user)):
+    """Return active and approved team members available for private chat."""
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT id,name,email,COALESCE(role,'Agent'),COALESCE(active,TRUE),COALESCE(approval_status,'Approved')
+                           FROM users
+                           WHERE id<>%s
+                             AND COALESCE(active,TRUE)=TRUE
+                             AND (COALESCE(approval_status,'Approved')='Approved' OR COALESCE(role,'Agent')='Admin')
+                           ORDER BY CASE WHEN COALESCE(role,'Agent')='Admin' THEN 0 ELSE 1 END,
+                                    LOWER(COALESCE(name,email,''))""", (current_user["id"],))
+            rows = cur.fetchall()
+    return {"users": [_chat_user_payload(r) for r in rows]}
+
+
+@app.get("/api/chat/team-room")
+def get_team_room(current_user: dict = Depends(get_current_user)):
+    """Return the single shared room for all active/approved team members."""
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            if not _chat_user_is_available(cur, current_user["id"]):
+                raise HTTPException(status_code=403, detail="Your account is not available for team chat.")
+            cur.execute("SELECT id,room_name FROM chat_team_room WHERE id=1")
+            room = cur.fetchone()
+            if not room:
+                cur.execute("INSERT INTO chat_team_room(id,room_name) VALUES(1,'Team Room') RETURNING id,room_name")
+                room = cur.fetchone()
+            cur.execute("""SELECT COUNT(*) FROM chat_team_messages m
+                           WHERE m.room_id=1 AND m.sender_id<>%s
+                             AND m.id > COALESCE((SELECT last_read_message_id FROM chat_team_reads WHERE room_id=1 AND user_id=%s),0)""",
+                        (current_user["id"],current_user["id"]))
+            unread = int(cur.fetchone()[0] or 0)
+        conn.commit()
+    return {"room":{"id":room[0],"name":room[1],"unread_count":unread}}
+
+
+@app.get("/api/chat/team-room/messages")
+def get_team_room_messages(limit: int = Query(100, ge=1, le=200), before_id: Optional[int] = Query(None, gt=0), current_user: dict = Depends(get_current_user)):
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            if not _chat_user_is_available(cur, current_user["id"]):
+                raise HTTPException(status_code=403, detail="Your account is not available for team chat.")
+            sql="""SELECT m.id,m.room_id,m.sender_id,m.body,m.created_at,u.name,u.email,u.role
+                   FROM chat_team_messages m JOIN users u ON u.id=m.sender_id
+                   WHERE m.room_id=1"""
+            params=[]
+            if before_id is not None:
+                sql += " AND m.id<%s"; params.append(before_id)
+            sql += " ORDER BY m.created_at DESC,m.id DESC LIMIT %s"; params.append(limit)
+            cur.execute(sql,params)
+            rows=list(reversed(cur.fetchall()))
+    return {"room":{"id":1,"name":"Team Room"},"messages":[
+        {"id":r[0],"room_id":r[1],"sender_id":r[2],"body":r[3],"created_at":str(r[4]),
+         "sender":{"id":r[2],"name":r[5],"email":r[6],"role":r[7]}} for r in rows
+    ]}
+
+
+@app.post("/api/chat/team-room/messages")
+def send_team_room_message(req: ChatMessageRequest, current_user: dict = Depends(get_current_user)):
+    body=req.body.strip()
+    if not body:
+        raise HTTPException(status_code=400, detail="Message cannot be empty.")
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            if not _chat_user_is_available(cur, current_user["id"]):
+                raise HTTPException(status_code=403, detail="Your account is not available for team chat.")
+            cur.execute("""INSERT INTO chat_team_messages(room_id,sender_id,body)
+                           VALUES(1,%s,%s) RETURNING id,created_at""",
+                        (current_user["id"],body))
+            message_id,created_at=cur.fetchone()
+            cur.execute("SELECT id FROM users WHERE id<>%s AND COALESCE(active,TRUE)=TRUE AND (COALESCE(approval_status,'Approved')='Approved' OR COALESCE(role,'Agent')='Admin')",(current_user["id"],))
+            recipients=cur.fetchall()
+            title=f"New team message from {(current_user.get('name') or current_user.get('email') or 'User')}"
+            for (recipient_id,) in recipients:
+                cur.execute("""INSERT INTO notifications(recipient_id,actor_id,lead_id,notification_type,title,message)
+                               VALUES(%s,%s,NULL,'chat_message',%s,%s)""",
+                            (recipient_id,current_user["id"],title,body[:250]))
+        conn.commit()
+    return {"success":True,"message":{"id":message_id,"room_id":1,"sender_id":current_user["id"],"body":body,"created_at":str(created_at)}}
+
+
+@app.post("/api/chat/team-room/read")
+def mark_team_room_read(current_user: dict = Depends(get_current_user)):
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            if not _chat_user_is_available(cur, current_user["id"]):
+                raise HTTPException(status_code=403, detail="Your account is not available for team chat.")
+            cur.execute("SELECT COALESCE(MAX(id),0) FROM chat_team_messages WHERE room_id=1")
+            last_id=int(cur.fetchone()[0] or 0)
+            cur.execute("""INSERT INTO chat_team_reads(room_id,user_id,last_read_message_id,last_read_at)
+                           VALUES(1,%s,%s,NOW())
+                           ON CONFLICT(room_id,user_id) DO UPDATE SET last_read_message_id=EXCLUDED.last_read_message_id,last_read_at=NOW()""",
+                        (current_user["id"],last_id))
+        conn.commit()
+    return {"success":True,"last_read_message_id":last_id}
+
+
+@app.get("/api/chat/team-room/unread-count")
+def team_room_unread_count(current_user: dict = Depends(get_current_user)):
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            if not _chat_user_is_available(cur, current_user["id"]):
+                raise HTTPException(status_code=403, detail="Your account is not available for team chat.")
+            cur.execute("""SELECT COUNT(*) FROM chat_team_messages m
+                           WHERE m.room_id=1 AND m.sender_id<>%s
+                             AND m.id > COALESCE((SELECT last_read_message_id FROM chat_team_reads WHERE room_id=1 AND user_id=%s),0)""",
+                        (current_user["id"],current_user["id"]))
+            count=int(cur.fetchone()[0] or 0)
+    return {"unread_count":count}
+
+
+@app.get("/api/chat/conversations")
+def chat_conversations(current_user: dict = Depends(get_current_user)):
+    """List the logged-in user's private conversations, newest first."""
+    scope, params = _chat_access_clause(current_user, "c")
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f"""SELECT c.id,c.user1_id,c.user2_id,c.created_at,c.last_message_at,
+                                  u1.name,u1.email,u1.role,u2.name,u2.email,u2.role,
+                                  COALESCE((SELECT COUNT(*) FROM chat_messages m
+                                            WHERE m.conversation_id=c.id
+                                              AND m.sender_id<>%s AND m.is_read=FALSE),0) AS unread_count,
+                                  (SELECT m.body FROM chat_messages m
+                                   WHERE m.conversation_id=c.id
+                                   ORDER BY m.created_at DESC,m.id DESC LIMIT 1) AS last_message,
+                                  (SELECT m.sender_id FROM chat_messages m
+                                   WHERE m.conversation_id=c.id
+                                   ORDER BY m.created_at DESC,m.id DESC LIMIT 1) AS last_sender_id
+                           FROM chat_conversations c
+                           JOIN users u1 ON u1.id=c.user1_id
+                           JOIN users u2 ON u2.id=c.user2_id
+                           WHERE {scope}
+                           ORDER BY c.last_message_at DESC,c.id DESC""", [current_user["id"], *params])
+            rows = cur.fetchall()
+    conversations=[]
+    for r in rows:
+        other = {"id": r[2], "name": r[8], "email": r[9], "role": r[10]} if r[1] == current_user["id"] else {"id": r[1], "name": r[5], "email": r[6], "role": r[7]}
+        conversations.append({
+            "id": r[0],
+            "other_user": other,
+            "created_at": str(r[3]),
+            "last_message_at": str(r[4]),
+            "unread_count": int(r[11] or 0),
+            "last_message": r[12],
+            "last_sender_id": r[13],
+        })
+    return {"conversations": conversations}
+
+
+@app.post("/api/chat/conversations")
+def start_chat(req: ChatStartRequest, current_user: dict = Depends(get_current_user)):
+    """Create or return the single private conversation for two users."""
+    if req.user_id == current_user["id"]:
+        raise HTTPException(status_code=400, detail="You cannot start a chat with yourself.")
+    user1_id, user2_id = _chat_pair(current_user["id"], req.user_id)
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            if not _chat_user_is_available(cur, req.user_id):
+                raise HTTPException(status_code=404, detail="That user is not available for chat.")
+            cur.execute("""INSERT INTO chat_conversations(user1_id,user2_id)
+                           VALUES(%s,%s)
+                           ON CONFLICT (user1_id,user2_id) DO NOTHING
+                           RETURNING id""", (user1_id,user2_id))
+            row=cur.fetchone()
+            if row:
+                conversation_id=row[0]
+            else:
+                cur.execute("SELECT id FROM chat_conversations WHERE user1_id=%s AND user2_id=%s", (user1_id,user2_id))
+                existing=cur.fetchone()
+                if not existing:
+                    raise HTTPException(status_code=500,detail="Unable to create the chat conversation.")
+                conversation_id=existing[0]
+        conn.commit()
+    return {"success":True,"conversation_id":conversation_id}
+
+
+@app.get("/api/chat/conversations/{conversation_id}/messages")
+def chat_messages(conversation_id: int, limit: int = Query(100, ge=1, le=200), before_id: Optional[int] = Query(None, gt=0), current_user: dict = Depends(get_current_user)):
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            conversation=_chat_conversation_row(cur,conversation_id)
+            if not conversation:
+                raise HTTPException(status_code=404,detail="Conversation not found.")
+            if current_user["id"] not in (conversation[1],conversation[2]) and not is_admin(current_user):
+                raise HTTPException(status_code=403,detail="You do not have access to this conversation.")
+            sql="""SELECT m.id,m.conversation_id,m.sender_id,m.body,m.is_read,m.created_at,
+                          u.name,u.email,u.role
+                   FROM chat_messages m JOIN users u ON u.id=m.sender_id
+                   WHERE m.conversation_id=%s"""
+            params=[conversation_id]
+            if before_id is not None:
+                sql+=" AND m.id<%s";params.append(before_id)
+            sql+=" ORDER BY m.created_at DESC,m.id DESC LIMIT %s";params.append(limit)
+            cur.execute(sql,params)
+            rows=list(reversed(cur.fetchall()))
+    return {"conversation_id":conversation_id,"messages":[
+        {"id":r[0],"conversation_id":r[1],"sender_id":r[2],"body":r[3],"is_read":bool(r[4]),"created_at":str(r[5]),
+         "sender":{"id":r[2],"name":r[6],"email":r[7],"role":r[8]}}
+        for r in rows
+    ]}
+
+
+@app.post("/api/chat/conversations/{conversation_id}/messages")
+def send_chat_message(conversation_id: int, req: ChatMessageRequest, current_user: dict = Depends(get_current_user)):
+    body=req.body.strip()
+    if not body:
+        raise HTTPException(status_code=400,detail="Message cannot be empty.")
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            conversation=_chat_conversation_row(cur,conversation_id)
+            if not conversation:
+                raise HTTPException(status_code=404,detail="Conversation not found.")
+            if current_user["id"] not in (conversation[1],conversation[2]):
+                raise HTTPException(status_code=403,detail="Only conversation participants can send messages.")
+            recipient_id=conversation[2] if conversation[1]==current_user["id"] else conversation[1]
+            cur.execute("""INSERT INTO chat_messages(conversation_id,sender_id,body,is_read)
+                           VALUES(%s,%s,%s,FALSE)
+                           RETURNING id,created_at""",(conversation_id,current_user["id"],body))
+            message_id,created_at=cur.fetchone()
+            cur.execute("UPDATE chat_conversations SET last_message_at=NOW() WHERE id=%s",(conversation_id,))
+            cur.execute("""INSERT INTO notifications(recipient_id,actor_id,lead_id,notification_type,title,message)
+                           VALUES(%s,%s,NULL,'chat_message',%s,%s)""",(
+                               recipient_id,current_user["id"],
+                               f"New message from {(current_user.get('name') or current_user.get('email') or 'User')}",
+                               body[:250]))
+        conn.commit()
+    return {"success":True,"message":{"id":message_id,"conversation_id":conversation_id,"sender_id":current_user["id"],"body":body,"is_read":False,"created_at":str(created_at)}}
+
+
+@app.post("/api/chat/conversations/{conversation_id}/read")
+def mark_chat_read(conversation_id: int, current_user: dict = Depends(get_current_user)):
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            conversation=_chat_conversation_row(cur,conversation_id)
+            if not conversation:
+                raise HTTPException(status_code=404,detail="Conversation not found.")
+            if current_user["id"] not in (conversation[1],conversation[2]):
+                raise HTTPException(status_code=403,detail="Only conversation participants can mark messages as read.")
+            cur.execute("""UPDATE chat_messages SET is_read=TRUE
+                           WHERE conversation_id=%s AND sender_id<>%s AND is_read=FALSE""",(conversation_id,current_user["id"]))
+            count=cur.rowcount
+        conn.commit()
+    return {"success":True,"marked_read":count}
+
+
+@app.get("/api/chat/unread-count")
+def chat_unread_count(current_user: dict = Depends(get_current_user)):
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT COUNT(*) FROM chat_messages m
+                           JOIN chat_conversations c ON c.id=m.conversation_id
+                           WHERE (c.user1_id=%s OR c.user2_id=%s)
+                             AND m.sender_id<>%s AND m.is_read=FALSE""",(current_user["id"],current_user["id"],current_user["id"]))
+            count=cur.fetchone()[0]
+    return {"unread_count":int(count)}
+
+
+@app.get("/api/admin/chat/conversations")
+def admin_chat_conversations(current_user: dict = Depends(get_current_user)):
+    require_admin(current_user)
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT c.id,c.user1_id,c.user2_id,c.created_at,c.last_message_at,
+                                  u1.name,u1.email,u1.role,u1.active,u1.approval_status,
+                                  u2.name,u2.email,u2.role,u2.active,u2.approval_status,
+                                  COALESCE((SELECT COUNT(*) FROM chat_messages m WHERE m.conversation_id=c.id AND m.is_read=FALSE AND m.sender_id<>%s),0),
+                                  (SELECT m.body FROM chat_messages m WHERE m.conversation_id=c.id ORDER BY m.created_at DESC,m.id DESC LIMIT 1)
+                           FROM chat_conversations c
+                           JOIN users u1 ON u1.id=c.user1_id
+                           JOIN users u2 ON u2.id=c.user2_id
+                           ORDER BY c.last_message_at DESC,c.id DESC""", (current_user["id"],))
+            rows=cur.fetchall()
+    return {"conversations":[
+        {"id":r[0],"user1":_chat_user_payload((r[1],r[5],r[6],r[7],r[8],r[9])),
+         "user2":_chat_user_payload((r[2],r[10],r[11],r[12],r[13],r[14])),
+         "created_at":str(r[3]),"last_message_at":str(r[4]),"unread_count":int(r[15] or 0),"last_message":r[16]}
+        for r in rows
+    ]}
+
+
+@app.delete("/api/admin/chat/conversations/{conversation_id}")
+def admin_delete_chat_conversation(conversation_id: int, current_user: dict = Depends(get_current_user)):
+    require_admin(current_user)
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM chat_conversations WHERE id=%s", (conversation_id,))
+            if cur.rowcount==0:
+                raise HTTPException(status_code=404, detail="Conversation not found.")
+        conn.commit()
+    return {"success":True,"deleted":True,"conversation_id":conversation_id}
+
 
 # Groups
 
