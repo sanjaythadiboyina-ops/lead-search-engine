@@ -151,7 +151,6 @@ body::after{right:-130px;bottom:8vh;background:#6aa7ff;animation:floatOrb2 14s e
 .chat-empty{margin:auto;text-align:center;color:var(--muted);padding:30px;line-height:1.6}
 .chat-empty b{color:var(--green2)}
 .chat-admin{margin-top:12px}
-.chat-msg-actions{display:flex;gap:4px;justify-content:flex-end;margin-top:5px;flex-wrap:wrap}.chat-msg-actions button{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:6px;padding:3px 6px;font-size:9px}.chat-msg-actions button:hover{background:#eef7f1;color:var(--green2)}.chat-reply-preview{border-left:3px solid var(--green);background:rgba(255,255,255,.65);padding:5px 7px;border-radius:6px;margin-bottom:6px;font-size:10px;color:var(--muted)}.chat-reply-preview b{color:var(--green2);font-size:9px}
 @media(max-width:800px){
   .chat-shell{grid-template-columns:1fr;min-height:620px}
   .chat-sidebar{min-height:620px}
@@ -161,176 +160,6 @@ body::after{right:-130px;bottom:8vh;background:#6aa7ff;animation:floatOrb2 14s e
   .chat-mobile-back{display:inline-block}
   .chat-bubble{max-width:88%}
 }
-.chat-msg-actions{display:flex;gap:4px;justify-content:flex-end;margin-top:5px;opacity:.0;transition:opacity .15s ease}.chat-bubble:hover .chat-msg-actions{opacity:1}.chat-msg-actions button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:3px 6px;font-size:10px;cursor:pointer}.chat-body.deleted{font-style:italic;opacity:.65}
-/* =========================================================
-   Professional Chat UI v3
-   Visual-only redesign: preserves existing chat behavior/API.
-   ========================================================= */
-.chat-shell{
-  --chat-primary:#16834a;
-  --chat-primary-dark:#0d6a3a;
-  --chat-soft:#eaf6ef;
-  --chat-border:#e2e9e5;
-  --chat-text:#18231d;
-  --chat-muted:#7a857f;
-  display:grid;
-  grid-template-columns:360px minmax(0,1fr);
-  gap:0;
-  min-height:calc(100vh - 175px);
-  height:calc(100vh - 175px);
-  max-height:820px;
-  overflow:hidden;
-  background:#fff;
-  border:1px solid #dfe8e3;
-  border-radius:18px;
-  box-shadow:0 12px 35px rgba(24,52,38,.09);
-}
-.chat-sidebar{
-  min-height:0;
-  height:100%;
-  padding:0;
-  background:#fbfcfb;
-  border-right:1px solid var(--chat-border);
-}
-.chat-sidebar-top{
-  min-height:76px;
-  padding:0 20px;
-  border-bottom:1px solid var(--chat-border);
-  background:#fff;
-}
-.chat-sidebar-top h2{font-size:21px;letter-spacing:-.35px;color:var(--chat-text)}
-.chat-count{
-  min-width:24px;height:24px;padding:0 7px;display:grid;place-items:center;
-  border-radius:20px;background:#f0f5f2;color:var(--chat-primary-dark);font-size:11px;font-weight:800;
-}
-.chat-search{margin:14px 16px 12px}
-.chat-search input{
-  height:42px;border:1px solid #dce5df;background:#f5f8f6;border-radius:12px;
-  padding-left:38px;font-size:12px;transition:.18s ease;
-}
-.chat-search input:focus{background:#fff;border-color:#9ccfb1;box-shadow:0 0 0 3px rgba(22,131,74,.08)}
-.chat-search span{left:13px;top:11px;font-size:15px}
-.chat-tabs{
-  margin:0 16px 12px;padding:3px;gap:3px;border-radius:11px;background:#eef3f0;
-}
-.chat-tab{
-  border:0;background:transparent;color:#78837d;padding:9px;border-radius:8px;font-size:11px;font-weight:800;
-}
-.chat-tab.active{background:#fff;color:var(--chat-primary-dark);border:0;box-shadow:0 2px 7px rgba(22,60,40,.08)}
-.chat-list{
-  border:0;border-radius:0;background:transparent;
-  overflow:auto;
-  scrollbar-width:thin;
-  scrollbar-color:#cbd8d0 transparent;
-}
-.chat-row{
-  position:relative;gap:12px;padding:13px 17px;border-bottom:1px solid #edf1ee;background:transparent;
-}
-.chat-row:hover{background:#f4f8f5}
-.chat-row.active{background:#eaf6ef}
-.chat-row.active:before{
-  content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:0 4px 4px 0;background:var(--chat-primary);
-}
-.chat-avatar-wrap{flex-basis:44px}
-.chat-avatar{
-  width:44px;height:44px;background:linear-gradient(145deg,#edf8f1,#dcefe4);
-  color:var(--chat-primary-dark);font-size:13px;border:1px solid #d9ebe0;
-}
-.chat-dot{width:10px;height:10px;border:2px solid #fbfcfb}
-.chat-dot.active-account{background:#20a15d;box-shadow:0 0 0 2px rgba(32,161,93,.12)}
-.chat-row-name{font-size:12.5px;color:#1c2821}
-.chat-role{background:#edf3ef;color:#68756e;font-size:9px;padding:3px 6px}
-.chat-row-preview{font-size:11px;margin-top:4px;color:#7b867f}
-.chat-row-time{font-size:9px;color:#9aa49e}
-.chat-unread{background:var(--chat-primary);box-shadow:0 2px 5px rgba(22,131,74,.18)}
-.chat-main{
-  min-height:0;height:100%;background:#f7faf8;
-}
-.chat-head{
-  min-height:76px;padding:0 20px;gap:12px;border-bottom:1px solid var(--chat-border);background:#fff;
-  box-shadow:0 1px 3px rgba(20,45,31,.03);z-index:2;
-}
-.chat-head .chat-avatar{width:46px;height:46px}
-.chat-head-name h2{font-size:16px;color:#17221c;letter-spacing:-.2px}
-.chat-head-status{font-size:10.5px;color:#7a857f}
-.chat-head-status:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#22a35e;margin-right:5px;vertical-align:1px}
-.chat-head button{
-  width:38px;min-width:38px;height:38px;padding:0;border:1px solid #dbe5df;background:#fff;
-  color:#617069;border-radius:10px;box-shadow:none;
-}
-.chat-head button:hover{background:#f0f7f3;color:var(--chat-primary-dark);border-color:#bcd8c7}
-.chat-messages{
-  padding:24px 28px 18px;gap:10px;
-  background-color:#f7faf8;
-  background-image:radial-gradient(rgba(22,131,74,.045) .7px,transparent .7px);
-  background-size:18px 18px;
-}
-.chat-day{
-  font-size:9.5px;padding:5px 10px;background:rgba(255,255,255,.92);border:1px solid #e1e9e4;
-  box-shadow:0 2px 6px rgba(30,50,39,.04);color:#89938e;
-}
-.chat-bubble-row{gap:8px}
-.chat-bubble{
-  max-width:min(68%,650px);padding:10px 12px 8px;border:1px solid #e2e9e5;border-radius:15px 15px 15px 5px;
-  background:#fff;box-shadow:0 2px 8px rgba(22,45,32,.045);
-}
-.chat-bubble.mine{
-  background:#dff3e7;border-color:#c9e5d3;border-radius:15px 15px 5px 15px;
-  box-shadow:0 2px 8px rgba(22,131,74,.07);
-}
-.chat-sender{font-size:10px;color:var(--chat-primary-dark);margin-bottom:4px}
-.chat-body{font-size:12.5px;line-height:1.55;color:#25312a}
-.chat-meta{font-size:8.5px;color:#839089;margin-top:5px}
-.chat-msg-actions{opacity:0;transition:.15s ease}
-.chat-bubble:hover .chat-msg-actions{opacity:1}
-.chat-msg-actions button{
-  border:1px solid #dce5df;background:#fff;color:#6d7972;border-radius:7px;padding:4px 7px;
-  box-shadow:0 1px 3px rgba(0,0,0,.04);
-}
-.chat-msg-actions button:hover{background:#edf7f1;color:var(--chat-primary-dark);border-color:#bfdcca}
-.chat-reply-preview{border-left:3px solid var(--chat-primary);background:#f2f7f4;border-radius:7px;padding:6px 8px}
-.chat-compose{
-  align-items:flex-end;gap:9px;padding:12px 16px 14px;border-top:1px solid var(--chat-border);
-  background:#fff;box-shadow:0 -4px 14px rgba(25,50,36,.035);
-}
-.chat-compose textarea{
-  min-height:44px;max-height:120px;border:1px solid #dce5df;background:#f7f9f8;border-radius:13px;
-  padding:12px 13px;font-size:12px;line-height:1.4;
-}
-.chat-compose textarea:focus{background:#fff;border-color:#9ccfb1;box-shadow:0 0 0 3px rgba(22,131,74,.07)}
-.chat-compose button{
-  min-width:48px;width:48px;height:44px;border:0;border-radius:12px;background:var(--chat-primary);
-  box-shadow:0 5px 12px rgba(22,131,74,.2);font-size:0;position:relative;
-}
-.chat-compose button:after{content:"➤";font-size:17px;color:#fff;position:absolute;left:15px;top:11px}
-.chat-compose button:hover{background:var(--chat-primary-dark);transform:translateY(-1px)}
-.chat-hint{font-size:9px;padding:0 18px 9px;color:#9aa49e}
-.chat-empty{color:#8a958f}
-@media(max-width:1000px){
-  .chat-shell{grid-template-columns:310px minmax(0,1fr)}
-}
-@media(max-width:800px){
-  .chat-shell{height:calc(100vh - 130px);min-height:560px;border-radius:14px}
-  .chat-sidebar{min-height:560px}
-  .chat-main{min-height:560px}
-  .chat-head{padding:0 13px}
-  .chat-messages{padding:18px 12px 12px}
-  .chat-bubble{max-width:86%}
-}
-
-
-/* Chat reliability + interaction polish v5 */
-.chat-reply-bar{display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid #e2e9e5;background:#f7faf8;color:#536158;font-size:10px}
-.chat-reply-bar>div{min-width:0;flex:1;border-left:3px solid #16834a;padding-left:8px}
-.chat-reply-bar b{color:#0d6a3a;font-size:10px}
-.chat-reply-bar #chatReplyText{margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chat-reply-bar button{width:28px;height:28px;border:0;border-radius:8px;background:#fff;color:#6d7972;font-size:18px;line-height:1}
-.chat-reply-bar button:hover{background:#eaf6ef;color:#0d6a3a}
-.chat-reactions{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
-.chat-reaction{border:1px solid #dce5df;background:#f7faf8;border-radius:12px;padding:2px 6px;font-size:9px;color:#536158}
-.chat-online{color:#16914f;font-weight:700}.chat-offline{color:#8b9690}
-.chat-last-seen{font-size:10px;color:#8a958f}
-
 </style>
 
 </head>
@@ -423,7 +252,6 @@ body::after{right:-130px;bottom:8vh;background:#6aa7ff;animation:floatOrb2 14s e
       <div id="chatMessages" class="chat-messages">
         <div class="chat-empty"><b>Welcome to Team Chat</b><br>Select a team member to start messaging.</div>
       </div>
-      <div id="chatReplyBar" class="chat-reply-bar hidden"><div><b>Replying to message</b><div id="chatReplyText"></div></div><button type="button" onclick="cancelChatReply()" aria-label="Cancel reply">×</button></div>
 
       <div class="chat-compose">
         <textarea id="chatInput" rows="2" maxlength="5000" placeholder="Write a message…  Enter to send · Shift+Enter for new line" onkeydown="chatInputKeydown(event)" disabled></textarea>
@@ -433,7 +261,13 @@ body::after{right:-130px;bottom:8vh;background:#6aa7ff;animation:floatOrb2 14s e
     </section>
   </div>
 
-
+  <div id="chatAdminCard" class="card chat-admin hidden">
+    <div class="toolbar"><div><h2>Admin Conversation Management</h2><span class="muted">Review all team conversations and remove a conversation when required.</span></div><button class="secondary push" onclick="loadAdminChat()">Refresh</button></div>
+    <div class="table-wrap" style="margin-top:10px"><table class="table">
+      <thead><tr><th>Conversation</th><th>Users</th><th>Last Message</th><th>Updated</th><th>Unread</th><th>Action</th></tr></thead>
+      <tbody id="chatAdminBody"></tbody>
+    </table></div>
+  </div>
 </section>
 <section id="page-admin" class="page"><div class="card"><div class="toolbar"><div><h2>Agent Management</h2><p class="muted">One Admin account controls all Agent accounts.</p></div><button class="primary push" onclick="createAgent()">+ Create Agent</button></div><div class="table-wrap" style="margin-top:10px"><table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody id="teamBody"></tbody></table></div></div><div class="card"><h2>Activity</h2><div class="table-wrap" style="margin-top:10px"><table class="table"><thead><tr><th>Date</th><th>User</th><th>Lead</th><th>Action</th><th>Details</th></tr></thead><tbody id="activityBody"></tbody></table></div></div><div class="card"><div class="toolbar"><div><h2>Google Sheets</h2><span class="muted" id="sheetStatus">Optional</span></div><button class="secondary push" onclick="syncSheets()">Sync now</button></div></div></section>
 
@@ -456,7 +290,7 @@ let phoneConfirmationResult=null,phoneAuthMode="login",phoneRecaptcha=null;
 const API="";const STATUSES=["New","Contacted","Follow-up","Negotiation","Converted","Lost"];const CATEGORIES=["Restaurant","Cafe","Bakery","Bar","Gym","Salon","Dentist","Clinic","Pharmacy","Hotel","Real Estate","Supermarket","Jewellery","Furniture","Car Repair","Travel Agency","Photography","Event Management","Interior Design","Boutique"];
 
 let token=localStorage.getItem("lse_token")||"",user=null,team=[],leads=[],results=[],groups=[],activeGroupId=null,notificationTimer=null;
-let chatConversations=[],chatUsers=[],activeConversationId=null,chatTab="team",chatPollTimer=null,chatPresenceTimer=null,chatSending=false,activeChatMode="team",chatReplyTo=null;
+let chatConversations=[],chatUsers=[],activeConversationId=null,chatTab="team",chatPollTimer=null,chatSending=false,activeChatMode="team";
 
 const $=id=>document.getElementById(id);const esc=v=>String(v??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
 
@@ -504,7 +338,7 @@ async function forgotEmailPassword(){clearAuthError();const email=$('loginEmail'
 
 function logout(){token="";user=null;localStorage.removeItem("lse_token");try{firebaseAuth.signOut()}catch{}location.reload()}
 
-async function startApp(){try{if(!user){const me=await api("/api/me");user=me.user}const tm=await api("/api/team-members");team=tm.team_members||[];$('auth').classList.add("hidden");$('app').classList.remove("hidden");$('userName').textContent=user.name||user.email.split('@')[0];$('userRole').textContent=user.role||"Agent";$('avatar').textContent=(user.name||user.email||"U").charAt(0).toUpperCase();$('adminNav').classList.toggle("hidden",user.role!=="Admin");document.querySelectorAll('.admin-only').forEach(x=>x.classList.toggle('hidden',user.role!=='Admin'));fillStatic();await loadGroups();await refreshDashboard();await loadNotifications();await loadChat();if(notificationTimer)clearInterval(notificationTimer);if(chatPresenceTimer)clearInterval(chatPresenceTimer);chatPresenceTimer=setInterval(()=>{if(token)api("/api/chat/presence",{method:"POST"}).catch(()=>{})},15000);api("/api/chat/presence",{method:"POST"}).catch(()=>{});notificationTimer=setInterval(()=>{if(token){loadNotifications(true);loadChatUnreadCount(true);loadTeamRoomUnreadCount(true);if(document.getElementById("page-chat")?.classList.contains("active")){if(activeChatMode==='team')loadTeamRoomMessages(true);else if(activeConversationId)loadChatMessages(activeConversationId,true)} }},5000)}catch(e){localStorage.removeItem("lse_token");token="";$('auth').classList.remove("hidden");$('app').classList.add("hidden");toast(e.message,true)}}
+async function startApp(){try{if(!user){const me=await api("/api/me");user=me.user}const tm=await api("/api/team-members");team=tm.team_members||[];$('auth').classList.add("hidden");$('app').classList.remove("hidden");$('userName').textContent=user.name||user.email.split('@')[0];$('userRole').textContent=user.role||"Agent";$('avatar').textContent=(user.name||user.email||"U").charAt(0).toUpperCase();$('adminNav').classList.toggle("hidden",user.role!=="Admin");document.querySelectorAll('.admin-only').forEach(x=>x.classList.toggle('hidden',user.role!=='Admin'));fillStatic();await loadGroups();await refreshDashboard();await loadNotifications();await loadChat();if(notificationTimer)clearInterval(notificationTimer);notificationTimer=setInterval(()=>{if(token){loadNotifications(true);loadChatUnreadCount(true);loadTeamRoomUnreadCount(true);if(document.getElementById("page-chat")?.classList.contains("active")){if(activeChatMode==='team')loadTeamRoomMessages(true);else if(activeConversationId)loadChatMessages(activeConversationId,true)} }},5000)}catch(e){localStorage.removeItem("lse_token");token="";$('auth').classList.remove("hidden");$('app').classList.add("hidden");toast(e.message,true)}}
 
 function go(page){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));$('page-'+page).classList.add('active');document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===page));if(page==='dashboard')refreshDashboard();if(page==='leads')loadLeads();if(page==='groups')loadGroups();if(page==='history')loadHistory();if(page==='ai'){}if(page==='chat')loadChat();if(page==='ai-call'&&user?.role!=='Admin')return;if(page==='admin'&&user?.role==='Admin')loadAdmin()}
 
@@ -599,20 +433,21 @@ function chatDayLabel(v){if(!v)return "";try{const d=new Date(v),n=new Date();co
 function setChatTab(tab){chatTab=tab==="team"?"team":"chats";$("chatTabChats").classList.toggle("active",chatTab==="chats");$("chatTabTeam").classList.toggle("active",chatTab==="team");renderChatDirectory();}
 
 function renderChatDirectory(){
-  const box=$("chatList"),q=$("chatUserSearch").value.trim().toLowerCase();
+  const box=$("chatList"); if(!box)return;
+  const q=($("chatUserSearch")?.value||"").trim().toLowerCase();
   if(chatTab==="team"){
     const users=chatUsers.filter(u=>!q||chatSearchValue(u).includes(q));
     $("chatSummary").textContent=`${users.length+1}`;
     const teamRoom=`<div class="chat-row team-room-row ${activeChatMode==='team'?'active':''}" onclick="openTeamRoom()">
-      <div class="chat-avatar-wrap"><div class="chat-avatar">👥</div><span class="chat-dot active-account"></span></div>
+      <div class="chat-avatar-wrap"><div class="chat-avatar">👥</div></div>
       <div class="chat-row-main"><div class="chat-row-line"><div class="chat-row-name">Team Room</div><span class="chat-role">Everyone</span></div><div class="chat-row-preview">All approved team members can chat here</div></div>
       ${window.__teamUnread?`<span class="chat-unread">${window.__teamUnread>99?'99+':window.__teamUnread}</span>`:''}
     </div>`;
     box.innerHTML=teamRoom+users.map(u=>{
       const c=chatConversationForUser(u.id),unread=Number(c?.unread_count||0),active=activeChatMode==='private'&&Number(c?.id)===Number(activeConversationId);
       return `<div class="chat-row ${active?'active ':''}${unread?'unread':''}" onclick="openChatWithUser(${Number(u.id)})">
-        <div class="chat-avatar-wrap"><div class="chat-avatar">${esc(chatInitials(u))}</div><span class="chat-dot ${u.online?'active-account':''}"></span></div>
-        <div class="chat-row-main"><div class="chat-row-line"><div class="chat-row-name">${esc(chatUserLabel(u))}</div><span class="chat-role">${esc(u.role||"Agent")}</span></div><div class="chat-row-preview">${esc(c?.last_message|| (u.online?'Online · Start a private conversation':'Offline · Start a private conversation'))}</div></div>
+        <div class="chat-avatar-wrap"><div class="chat-avatar">${esc(chatInitials(u))}</div></div>
+        <div class="chat-row-main"><div class="chat-row-line"><div class="chat-row-name">${esc(chatUserLabel(u))}</div><span class="chat-role">${esc(u.role||"Agent")}</span></div><div class="chat-row-preview">${esc(c?.last_message||"Start a private conversation")}</div></div>
         ${unread?`<span class="chat-unread">${unread>99?'99+':unread}</span>`:''}
       </div>`;
     }).join("")||teamRoom;
@@ -623,7 +458,7 @@ function renderChatDirectory(){
   box.innerHTML=rows.map(c=>{
     const u=c.other_user||{},unread=Number(c.unread_count||0),active=activeChatMode==='private'&&Number(c.id)===Number(activeConversationId);
     return `<div class="chat-row ${active?'active ':''}${unread?'unread':''}" onclick="openChatConversation(${Number(c.id)})">
-      <div class="chat-avatar-wrap"><div class="chat-avatar">${esc(chatInitials(u))}</div><span class="chat-dot ${u.online?'active-account':''}"></span></div>
+      <div class="chat-avatar-wrap"><div class="chat-avatar">${esc(chatInitials(u))}</div></div>
       <div class="chat-row-main"><div class="chat-row-line"><div class="chat-row-name">${esc(chatUserLabel(u))}</div><span class="chat-role">${esc(u.role||"Agent")}</span></div><div class="chat-row-preview">${esc(c.last_message||"No messages yet")}</div></div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="chat-row-time">${chatTime(c.last_message_at)}</span>${unread?`<span class="chat-unread">${unread>99?'99+':unread}</span>`:''}</div>
     </div>`;
@@ -634,14 +469,13 @@ function renderChatHeader(u,mode="private"){
   if(mode==="team"){
     $("chatHeadAvatar").textContent="👥";
     $("chatHeadName").textContent="Team Room";
-    $("chatHeadRole").innerHTML='<span class="chat-online">●</span> Everyone · shared team conversation';
+    $("chatHeadRole").textContent="Everyone · shared team conversation";
   }else{
     $("chatHeadAvatar").textContent=chatInitials(u);
     $("chatHeadName").textContent=chatUserLabel(u);
-    const online=!!u?.online;
-    $("chatHeadRole").innerHTML=online?`<span class="chat-online">● Online</span> · ${esc(u?.role||"Team member")}`:`<span class="chat-offline">● Offline</span> · ${esc(u?.role||"Team member")}${u?.last_seen?` · last seen ${chatTime(u.last_seen)}`:""}`;
+    $("chatHeadRole").textContent=`${u?.role||"Team member"} · Account active`;
   }
-  $("chatInput").disabled=false;$("chatSendBtn").disabled=false;$("chatRefreshBtn").disabled=false;
+  $("chatInput").disabled=false;$('chatSendBtn').disabled=false;$('chatRefreshBtn').disabled=false;
 }
 
 async function loadChat(){
@@ -650,6 +484,7 @@ async function loadChat(){
     const [u,c]=await Promise.all([api("/api/chat/users"),api("/api/chat/conversations")]);
     chatUsers=u.users||[];chatConversations=c.conversations||[];
     renderChatDirectory();await loadChatUnreadCount(true);await loadTeamRoomUnreadCount(true);
+    if(user?.role==="Admin"){$("chatAdminCard")?.classList.remove("hidden");await loadAdminChat()}else $("chatAdminCard")?.classList.add("hidden");
     renderChatDirectory();
     if(activeChatMode==='private'&&activeConversationId&&chatConversations.some(c=>Number(c.id)===Number(activeConversationId)))await loadChatMessages(activeConversationId,true);
     else if(activeChatMode==='team'){renderChatHeader(null,'team');await loadTeamRoomMessages(true);}
@@ -696,33 +531,23 @@ function renderMessageList(messages,teamMode=false){
   const body=$("chatMessages");
   body.innerHTML=groupChatMessages(messages).map(item=>{
     if(item.type==="day")return `<div class="chat-day">${esc(item.label)}</div>`;
-    const m=item.message,mine=Number(m.sender_id)===Number(user?.id),sender=m.sender||{},deleted=!!m.is_deleted;
-    const safeBody=deleted?'This message was deleted.':(m.body||'');
-    const actions=deleted?`<div class="chat-msg-actions"><button onclick="replyChatMessage(event,${Number(m.id)},${teamMode})">Reply</button></div>`:`<div class="chat-msg-actions"><button onclick="replyChatMessage(event,${Number(m.id)},${teamMode})">Reply</button><button onclick="copyChatMessage(event,${Number(m.id)},${JSON.stringify(m.body||'')})">Copy</button>${mine?`<button onclick="editChatMessage(event,${Number(m.id)},${JSON.stringify(m.body||'')},${teamMode})">Edit</button><button onclick="deleteChatMessage(event,${Number(m.id)},${teamMode})">Delete</button>`:''}<button onclick="reactChatMessage(event,${Number(m.id)},${teamMode},'👍')">👍</button><button onclick="reactChatMessage(event,${Number(m.id)},${teamMode},'❤️')">❤️</button></div>`;
-    return `<div class="chat-bubble-row ${mine?'mine':''}"><div class="chat-bubble ${mine?'mine':''}">${!mine?`<div class="chat-sender">${esc(sender.name||sender.email||"Team member")}${teamMode?` · ${esc(sender.role||"Agent")}`:''}</div>`:''}${m.reply_to_id&&!deleted?`<div class="chat-reply-preview"><b>Replying to ${esc(m.reply_sender_name||'message')}</b><div>${esc(m.reply_body||'Original message')}</div></div>`:''}<div class="chat-body ${deleted?'deleted':''}">${esc(safeBody)}</div><div class="chat-meta">${chatTime(m.created_at)}${m.edited_at&&!deleted?' · edited':''}${mine?` · ${teamMode?'✓ Sent':(m.is_read?'✓✓ Read':'✓ Sent')}`:''}</div>${actions}</div></div>`;
+    const m=item.message,mine=Number(m.sender_id)===Number(user?.id),sender=m.sender||{};
+    return `<div class="chat-bubble-row ${mine?'mine':''}"><div class="chat-bubble ${mine?'mine':''}">${(!mine&&teamMode)?`<div class="chat-sender">${esc(sender.name||sender.email||"Team member")} · ${esc(sender.role||"Agent")}</div>`:(!mine?`<div class="chat-sender">${esc(sender.name||sender.email||"Team member")}</div>`:'')}<div class="chat-body">${esc(m.body)}</div><div class="chat-meta">${chatTime(m.created_at)}${mine?` · ${teamMode?'✓ Sent':(m.is_read?'✓✓ Read':'✓ Sent')}`:''}</div></div></div>`;
   }).join("")||'<div class="chat-empty">No messages yet.<br>Say hello 👋</div>';
   body.scrollTop=body.scrollHeight;
 }
 
-function replyChatMessage(e,id,teamMode){e?.stopPropagation();const list=teamMode?window.__teamMessages||[]:window.__privateMessages||[];const m=list.find(x=>Number(x.id)===Number(id));chatReplyTo={id:Number(id),teamMode:!!teamMode};const input=$("chatInput");input.focus();input.placeholder="Reply to message…";$("chatReplyText").textContent=(m?.body||"Original message").slice(0,180);$("chatReplyBar").classList.remove("hidden");}
-function cancelChatReply(){chatReplyTo=null;$("chatReplyBar").classList.add("hidden");$("chatReplyText").textContent="";$("chatInput").placeholder="Write a message…  Enter to send · Shift+Enter for new line";}
-
-async function copyChatMessage(e,id,body){e?.stopPropagation();try{await navigator.clipboard.writeText(body||'');toast('Message copied')}catch{toast('Copy failed',true)}}
-async function editChatMessage(e,id,body,teamMode){e?.stopPropagation();const next=prompt('Edit message:',body||'');if(next===null)return;if(!next.trim())return toast('Message cannot be empty.',true);try{const url=teamMode?`/api/chat/team-room/messages/${id}`:`/api/chat/conversations/${activeConversationId}/messages/${id}`;await api(url,{method:'PATCH',body:JSON.stringify({body:next.trim()})});teamMode?await loadTeamRoomMessages(false):await loadChatMessages(activeConversationId,false)}catch(err){toast(err.message,true)}}
-async function deleteChatMessage(e,id,teamMode){e?.stopPropagation();if(!confirm('Delete this message?'))return;try{const url=teamMode?`/api/chat/team-room/messages/${id}`:`/api/chat/conversations/${activeConversationId}/messages/${id}`;await api(url,{method:'DELETE'});teamMode?await loadTeamRoomMessages(false):await loadChatMessages(activeConversationId,false)}catch(err){toast(err.message,true)}}
-async function reactChatMessage(e,id,teamMode,reaction){e?.stopPropagation();try{const url=teamMode?`/api/chat/team-room/messages/${id}/reactions`:`/api/chat/conversations/${activeConversationId}/messages/${id}/reactions`;await api(url,{method:'POST',body:JSON.stringify({reaction})});toast('Reaction added')}catch(err){toast(err.message,true)}}
-
 async function loadChatMessages(id,silent=false){
   if(!id)return;
   try{
-    const d=await api(`/api/chat/conversations/${id}/messages?limit=200`);window.__privateMessages=d.messages||[];renderMessageList(window.__privateMessages,false);
+    const d=await api(`/api/chat/conversations/${id}/messages?limit=200`);renderMessageList(d.messages||[],false);
     const c=chatConversations.find(x=>Number(x.id)===Number(id));if(c)c.unread_count=0;renderChatDirectory();
     await api(`/api/chat/conversations/${id}/read`,{method:"POST"});await loadChatUnreadCount(true);
   }catch(e){if(!silent)toast(e.message,true)}
 }
 
 async function loadTeamRoomMessages(silent=false){
-  try{const d=await api("/api/chat/team-room/messages?limit=200");window.__teamMessages=d.messages||[];renderMessageList(window.__teamMessages,true);await api("/api/chat/team-room/read",{method:"POST"});window.__teamUnread=0;await loadTeamRoomUnreadCount(true);renderChatDirectory();}
+  try{const d=await api("/api/chat/team-room/messages?limit=200");renderMessageList(d.messages||[],true);await api("/api/chat/team-room/read",{method:"POST"});window.__teamUnread=0;await loadTeamRoomUnreadCount(true);renderChatDirectory();}
   catch(e){if(!silent)toast(e.message,true)}
 }
 
@@ -735,10 +560,9 @@ async function sendChatMessage(){
   if(activeChatMode!=='team'&&!activeConversationId)return toast("Select a team chat first.",true);
   chatSending=true;$("chatSendBtn").disabled=true;
   try{
-    const payload={body,...(chatReplyTo?{reply_to_id:chatReplyTo.id}:{})};
-    if(activeChatMode==='team')await api("/api/chat/team-room/messages",{method:"POST",body:JSON.stringify(payload)});
-    else await api(`/api/chat/conversations/${activeConversationId}/messages`,{method:"POST",body:JSON.stringify(payload)});
-    input.value="";cancelChatReply();
+    if(activeChatMode==='team')await api("/api/chat/team-room/messages",{method:"POST",body:JSON.stringify({body})});
+    else await api(`/api/chat/conversations/${activeConversationId}/messages`,{method:"POST",body:JSON.stringify({body})});
+    input.value="";
     if(activeChatMode==='team')await loadTeamRoomMessages(false);else {await loadChat();await openChatConversation(activeConversationId)}
     input.focus();
   }catch(e){toast(e.message,true)}
@@ -746,6 +570,36 @@ async function sendChatMessage(){
 }
 
 function closeMobileChat(){$("chatLayout").classList.remove("mobile-chat-open");}
+async function loadAdminChat(){
+  if(user?.role!=="Admin")return;
+  try{
+    const d=await api("/api/admin/chat/conversations"),rows=d.conversations||[];
+    $("chatAdminBody").innerHTML=rows.map(c=>{
+      const u1=c.user1||{},u2=c.user2||{};
+      return `<tr><td>#${c.id}</td><td><b>${esc(chatUserLabel(u1))}</b> · ${esc(u1.role||"")}<br><b>${esc(chatUserLabel(u2))}</b> · ${esc(u2.role||"")}</td><td>${esc(c.last_message||"No messages yet")}</td><td>${fmt(c.last_message_at)}</td><td>${Number(c.unread_count||0)}</td><td><div class="actions"><button class="secondary" onclick="openAdminConversation(${Number(c.id)})">Open</button><button class="danger" onclick="deleteAdminChat(${Number(c.id)})">Delete</button></div></td></tr>`;
+    }).join("")||'<tr><td colspan="6" class="empty">No conversations yet.</td></tr>';
+  }catch(e){toast(e.message,true)}
+}
+async function openAdminConversation(id){
+  const c=chatConversations.find(x=>Number(x.id)===Number(id));
+  if(c)return openChatConversation(id);
+  try{
+    const d=await api("/api/admin/chat/conversations"),row=(d.conversations||[]).find(x=>Number(x.id)===Number(id));
+    if(!row)return toast("Conversation not found.",true);
+    activeConversationId=Number(id);
+    const other=Number(row.user1?.id)===Number(user?.id)?row.user2:row.user1;
+    renderChatHeader(other);$("chatLayout").classList.add("mobile-chat-open");await loadChatMessages(activeConversationId,false);
+  }catch(e){toast(e.message,true)}
+}
+async function deleteAdminChat(id){
+  if(user?.role!=="Admin")return toast("Admin only.",true);
+  if(!confirm(`Delete conversation #${id}? All messages in this conversation will be removed.`))return;
+  try{
+    await api(`/api/admin/chat/conversations/${id}`,{method:"DELETE"});
+    if(Number(activeConversationId)===Number(id)){activeConversationId=null;$("chatHeadName").textContent="Team Chat";$("chatHeadRole").textContent="Select a person from Team to start messaging.";$("chatHeadAvatar").textContent="?";$("chatMessages").innerHTML='<div class="chat-empty">Conversation deleted.</div>';$("chatInput").disabled=true;$("chatSendBtn").disabled=true;$("chatRefreshBtn").disabled=true}
+    await loadChat();toast("Conversation deleted");
+  }catch(e){toast(e.message,true)}
+}
 
 function notificationTime(v){try{return fmt(v)}catch{return String(v||'')}}
 
