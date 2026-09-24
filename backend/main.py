@@ -28,6 +28,7 @@ from collections import defaultdict, deque
 from urllib.parse import quote_plus, urlparse
 
 from urllib import robotparser
+from html.parser import HTMLParser
 
 import jwt
 
@@ -37,7 +38,7 @@ import requests
 
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, HTTPException, Depends, Header, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Depends, Header, Query
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -542,24 +543,18 @@ def init_db():
                 sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 body TEXT NOT NULL,
                 is_read BOOLEAN NOT NULL DEFAULT FALSE,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                edited_at TIMESTAMPTZ,
+                deleted_at TIMESTAMPTZ,
+                reply_to_id INTEGER REFERENCES chat_messages(id) ON DELETE SET NULL
             )""")
+            cur.execute("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ")
+            cur.execute("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ")
+            cur.execute("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS reply_to_id INTEGER REFERENCES chat_messages(id) ON DELETE SET NULL")
             cur.execute("CREATE INDEX IF NOT EXISTS chat_conversations_user1_idx ON chat_conversations(user1_id,last_message_at DESC)")
             cur.execute("CREATE INDEX IF NOT EXISTS chat_conversations_user2_idx ON chat_conversations(user2_id,last_message_at DESC)")
             cur.execute("CREATE INDEX IF NOT EXISTS chat_messages_conversation_idx ON chat_messages(conversation_id,created_at ASC,id ASC)")
             cur.execute("CREATE INDEX IF NOT EXISTS chat_messages_unread_idx ON chat_messages(conversation_id,is_read,created_at ASC)")
-            # Safe chat migrations for edit/delete/reply/reactions.
-            cur.execute("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ")
-            cur.execute("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ")
-            cur.execute("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE")
-            cur.execute("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS reply_to_id INTEGER REFERENCES chat_messages(id) ON DELETE SET NULL")
-            cur.execute("""CREATE TABLE IF NOT EXISTS chat_message_reactions (
-                message_id INTEGER NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
-                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                reaction TEXT NOT NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                PRIMARY KEY(message_id,user_id,reaction))""")
-            cur.execute("CREATE INDEX IF NOT EXISTS chat_reactions_message_idx ON chat_message_reactions(message_id)")
             # Shared Team Room: one common room for the whole approved team.
             cur.execute("""CREATE TABLE IF NOT EXISTS chat_team_room (
                 id INTEGER PRIMARY KEY DEFAULT 1,
@@ -572,8 +567,14 @@ def init_db():
                 room_id INTEGER NOT NULL DEFAULT 1 REFERENCES chat_team_room(id) ON DELETE CASCADE,
                 sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 body TEXT NOT NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                edited_at TIMESTAMPTZ,
+                deleted_at TIMESTAMPTZ,
+                reply_to_id INTEGER REFERENCES chat_team_messages(id) ON DELETE SET NULL
             )""")
+            cur.execute("ALTER TABLE chat_team_messages ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ")
+            cur.execute("ALTER TABLE chat_team_messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ")
+            cur.execute("ALTER TABLE chat_team_messages ADD COLUMN IF NOT EXISTS reply_to_id INTEGER REFERENCES chat_team_messages(id) ON DELETE SET NULL")
             cur.execute("""CREATE TABLE IF NOT EXISTS chat_team_reads (
                 room_id INTEGER NOT NULL DEFAULT 1 REFERENCES chat_team_room(id) ON DELETE CASCADE,
                 user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -583,21 +584,41 @@ def init_db():
             )""")
             cur.execute("INSERT INTO chat_team_room(id,room_name) VALUES(1,'Team Room') ON CONFLICT(id) DO NOTHING")
             cur.execute("CREATE INDEX IF NOT EXISTS chat_team_messages_room_idx ON chat_team_messages(room_id,created_at ASC,id ASC)")
-            cur.execute("ALTER TABLE chat_team_messages ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ")
-            cur.execute("ALTER TABLE chat_team_messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE")
-            cur.execute("ALTER TABLE chat_team_messages ADD COLUMN IF NOT EXISTS reply_to_id INTEGER REFERENCES chat_team_messages(id) ON DELETE SET NULL")
             cur.execute("""CREATE TABLE IF NOT EXISTS chat_presence (
                 user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
                 last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )""")
-            cur.execute("CREATE INDEX IF NOT EXISTS chat_presence_last_seen_idx ON chat_presence(last_seen DESC)")
-            cur.execute("""CREATE TABLE IF NOT EXISTS chat_team_reactions (
-                message_id INTEGER NOT NULL REFERENCES chat_team_messages(id) ON DELETE CASCADE,
+            # Reactions: create the current schema and safely migrate older MVP databases.
+            cur.execute("""CREATE TABLE IF NOT EXISTS chat_message_reactions (
+                id SERIAL PRIMARY KEY,
+                private_message_id INTEGER REFERENCES chat_messages(id) ON DELETE CASCADE,
+                team_message_id INTEGER REFERENCES chat_team_messages(id) ON DELETE CASCADE,
                 user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 reaction TEXT NOT NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                PRIMARY KEY(message_id,user_id,reaction))""")
-            cur.execute("CREATE INDEX IF NOT EXISTS chat_team_reactions_message_idx ON chat_team_reactions(message_id)")
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )""")
+            # Older versions may already have chat_message_reactions without the target columns.
+            # Add them before any SELECT/INSERT so existing installations do not crash.
+            cur.execute("ALTER TABLE chat_message_reactions ADD COLUMN IF NOT EXISTS id BIGSERIAL")
+            cur.execute("ALTER TABLE chat_message_reactions ADD COLUMN IF NOT EXISTS private_message_id INTEGER")
+            cur.execute("ALTER TABLE chat_message_reactions ADD COLUMN IF NOT EXISTS team_message_id INTEGER")
+            cur.execute("ALTER TABLE chat_message_reactions ADD COLUMN IF NOT EXISTS user_id INTEGER")
+            cur.execute("ALTER TABLE chat_message_reactions ADD COLUMN IF NOT EXISTS reaction TEXT")
+            cur.execute("ALTER TABLE chat_message_reactions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()")
+            # Preserve legacy private-message reactions when an old generic message_id column exists.
+            cur.execute("""DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='chat_message_reactions' AND column_name='message_id')
+                   AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='chat_message_reactions' AND column_name='private_message_id')
+                THEN
+                    EXECUTE 'UPDATE chat_message_reactions SET private_message_id=message_id WHERE private_message_id IS NULL AND message_id IS NOT NULL';
+                END IF;
+            END $$""")
+            cur.execute("CREATE INDEX IF NOT EXISTS chat_presence_last_seen_idx ON chat_presence(last_seen)")
+            cur.execute("CREATE INDEX IF NOT EXISTS chat_reactions_private_idx ON chat_message_reactions(private_message_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS chat_reactions_team_idx ON chat_message_reactions(team_message_id)")
+            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS chat_reaction_private_unique_idx ON chat_message_reactions(private_message_id,user_id,reaction) WHERE private_message_id IS NOT NULL")
+            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS chat_reaction_team_unique_idx ON chat_message_reactions(team_message_id,user_id,reaction) WHERE team_message_id IS NOT NULL")
             cur.execute("CREATE INDEX IF NOT EXISTS chat_team_reads_user_idx ON chat_team_reads(user_id,room_id)")
             cur.execute("CREATE INDEX IF NOT EXISTS leads_followup_idx ON leads(next_followup_date)")
             cur.execute("CREATE INDEX IF NOT EXISTS activity_logs_lead_created_idx ON activity_logs(lead_id,created_at DESC)")
@@ -615,6 +636,41 @@ def init_db():
 
 
 
+def ensure_chat_reaction_schema():
+    """Run the chat-reaction migration in its own transaction.
+
+    This is intentionally separate from the larger init_db transaction so a
+    failure in an unrelated legacy migration cannot roll back these columns.
+    """
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""CREATE TABLE IF NOT EXISTS chat_message_reactions (
+                id SERIAL PRIMARY KEY,
+                private_message_id INTEGER,
+                team_message_id INTEGER,
+                user_id INTEGER,
+                reaction TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )""")
+            cur.execute("ALTER TABLE chat_message_reactions ADD COLUMN IF NOT EXISTS private_message_id INTEGER")
+            cur.execute("ALTER TABLE chat_message_reactions ADD COLUMN IF NOT EXISTS team_message_id INTEGER")
+            cur.execute("ALTER TABLE chat_message_reactions ADD COLUMN IF NOT EXISTS user_id INTEGER")
+            cur.execute("ALTER TABLE chat_message_reactions ADD COLUMN IF NOT EXISTS reaction TEXT")
+            cur.execute("ALTER TABLE chat_message_reactions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()")
+            # Older MVP builds used a generic message_id for private reactions.
+            cur.execute("""DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='chat_message_reactions' AND column_name='message_id')
+                   AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='chat_message_reactions' AND column_name='private_message_id')
+                THEN
+                    EXECUTE 'UPDATE chat_message_reactions SET private_message_id=message_id WHERE private_message_id IS NULL AND message_id IS NOT NULL';
+                END IF;
+            END $$""")
+            cur.execute("CREATE INDEX IF NOT EXISTS chat_reactions_private_idx ON chat_message_reactions(private_message_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS chat_reactions_team_idx ON chat_message_reactions(team_message_id)")
+        conn.commit()
+
+
 @app.on_event("startup")
 
 def startup():
@@ -628,6 +684,13 @@ def startup():
     except Exception as exc:
 
         print(f"Database initialization error: {exc}")
+
+    # Run this migration separately so unrelated legacy DB errors cannot roll it back.
+    try:
+        ensure_chat_reaction_schema()
+        print("Chat reaction schema migration complete.")
+    except Exception as exc:
+        print(f"Chat reaction schema migration error: {exc}")
 
 # ============================================================
 
@@ -838,16 +901,11 @@ class ChatMessageRequest(BaseModel):
     body: str = Field(min_length=1, max_length=5000)
     reply_to_id: Optional[int] = Field(None, gt=0)
 
-
 class ChatEditMessageRequest(BaseModel):
     body: str = Field(min_length=1, max_length=5000)
 
-class ChatReplyRequest(BaseModel):
-    body: str = Field(min_length=1, max_length=5000)
-    reply_to_id: Optional[int] = Field(None, gt=0)
-
 class ChatReactionRequest(BaseModel):
-    reaction: str = Field(min_length=1, max_length=32)
+    reaction: str = Field(min_length=1, max_length=16)
 
 # ============================================================
 
@@ -2563,27 +2621,21 @@ def delete_notification(notification_id:int,current_user:dict=Depends(get_curren
 
 # Internal Chat
 # ============================================================
-# Lightweight presence: clients heartbeat while the app is open.
+# Private chat is participant-only. Admins may participate in chats
+# but cannot inspect, delete, or control another user's private chat.
 CHAT_ONLINE_SECONDS = 45
-
-
-def _chat_touch_presence(cur, user_id: int):
-    cur.execute("""INSERT INTO chat_presence(user_id,last_seen) VALUES(%s,NOW())
-                   ON CONFLICT(user_id) DO UPDATE SET last_seen=NOW()""", (user_id,))
-
-
-# WhatsApp-style internal team chat. This is separate from the
-# external lead WhatsApp link and never changes lead permissions.
-
-# WhatsApp-style internal team chat. This is separate from the
-# external lead WhatsApp link and never changes lead permissions.
 
 
 def _chat_user_is_available(cur, user_id: int) -> bool:
     cur.execute("""SELECT id,COALESCE(role,'Agent'),COALESCE(active,TRUE),COALESCE(approval_status,'Approved')
                    FROM users WHERE id=%s""", (user_id,))
     row = cur.fetchone()
-    return bool(row and row[2] and (row[3] == "Approved" or row[1] == "Admin"))
+    return bool(row and row[2] and row[3] == "Approved")
+
+
+def _require_chat_user(cur, user_id: int):
+    if not _chat_user_is_available(cur, user_id):
+        raise HTTPException(status_code=403, detail="Your account is not available for chat.")
 
 
 def _chat_pair(user_a: int, user_b: int):
@@ -2608,74 +2660,84 @@ def _chat_is_participant(conversation, user_id: int) -> bool:
 
 
 def _chat_user_payload(row):
+    return {"id": row[0], "name": row[1], "email": row[2], "role": row[3],
+            "active": bool(row[4]), "approval_status": row[5]}
+
+
+def _chat_reactions(cur, private_ids=None, team_ids=None):
+    private_ids=private_ids or []
+    team_ids=team_ids or []
+    result={}
+    if private_ids:
+        cur.execute("SELECT private_message_id,reaction,COUNT(*) FROM chat_message_reactions WHERE private_message_id=ANY(%s) GROUP BY private_message_id,reaction",(private_ids,))
+        for mid,reaction,count in cur.fetchall(): result.setdefault(("p",mid),{})[reaction]=int(count)
+    if team_ids:
+        cur.execute("SELECT team_message_id,reaction,COUNT(*) FROM chat_message_reactions WHERE team_message_id=ANY(%s) GROUP BY team_message_id,reaction",(team_ids,))
+        for mid,reaction,count in cur.fetchall(): result.setdefault(("t",mid),{})[reaction]=int(count)
+    return result
+
+
+def _chat_message_payload(r, current_user_id, reactions):
     return {
-        "id": row[0], "name": row[1], "email": row[2], "role": row[3],
-        "active": bool(row[4]), "approval_status": row[5],
+        "id":r[0],"conversation_id":r[1],"sender_id":r[2],"body":r[3],
+        "is_read":bool(r[4]),"created_at":str(r[5]),"edited_at":str(r[6]) if r[6] else None,
+        "deleted_at":str(r[7]) if r[7] else None,"is_deleted":bool(r[7]),
+        "reply_to_id":r[8],"reply_body":r[9],"reply_sender_id":r[10],"reply_sender_name":r[11],
+        "sender":{"id":r[2],"name":r[12],"email":r[13],"role":r[14]},
+        "is_mine":r[2]==current_user_id,"reactions":reactions.get(("p",r[0]),{})
     }
 
 
-def _chat_message_payload(row, current_user_id: int):
+def _team_message_payload(r, current_user_id, reactions):
     return {
-        "id": row[0], "conversation_id": row[1], "sender_id": row[2],
-        "body": row[3], "is_read": bool(row[4]), "created_at": str(row[5]),
-        "edited_at": str(row[6]) if row[6] else None,
-        "deleted_at": str(row[7]) if row[7] else None,
-        "reply_to_id": row[8], "reply_body": row[9], "reply_sender_id": row[10], "reply_sender_name": row[11],
-        "sender": {"id": row[2], "name": row[12], "email": row[13], "role": row[14]},
-        "is_mine": row[2] == current_user_id,
+        "id":r[0],"room_id":r[1],"sender_id":r[2],"body":r[3],"created_at":str(r[4]),
+        "edited_at":str(r[5]) if r[5] else None,"deleted_at":str(r[6]) if r[6] else None,
+        "is_deleted":bool(r[6]),"reply_to_id":r[7],"reply_body":r[8],"reply_sender_id":r[9],
+        "reply_sender_name":r[10],"sender":{"id":r[2],"name":r[11],"email":r[12],"role":r[13]},
+        "is_mine":r[2]==current_user_id,"reactions":reactions.get(("t",r[0]),{})
     }
+
+
+@app.post("/api/chat/presence")
+def chat_presence(current_user: dict = Depends(get_current_user)):
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            _require_chat_user(cur,current_user["id"])
+            cur.execute("""INSERT INTO chat_presence(user_id,last_seen) VALUES(%s,NOW())
+                           ON CONFLICT(user_id) DO UPDATE SET last_seen=NOW()""",(current_user["id"],))
+        conn.commit()
+    return {"success":True,"online":True}
 
 
 @app.get("/api/chat/users")
 def chat_users(current_user: dict = Depends(get_current_user)):
-    """Only active/approved users are discoverable for internal chat."""
     with db_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("""SELECT id,name,email,COALESCE(role,'Agent'),COALESCE(active,TRUE),COALESCE(approval_status,'Approved')
-                           FROM users
-                           WHERE id<>%s AND COALESCE(active,TRUE)=TRUE
-                             AND (COALESCE(approval_status,'Approved')='Approved' OR COALESCE(role,'Agent')='Admin')
-                           ORDER BY CASE WHEN COALESCE(role,'Agent')='Admin' THEN 0 ELSE 1 END,
-                                    LOWER(COALESCE(name,email,''))""", (current_user["id"],))
+            _require_chat_user(cur,current_user["id"])
+            cur.execute("""SELECT u.id,u.name,u.email,COALESCE(u.role,'Agent'),COALESCE(u.active,TRUE),COALESCE(u.approval_status,'Approved'),
+                                  p.last_seen
+                           FROM users u LEFT JOIN chat_presence p ON p.user_id=u.id
+                           WHERE u.id<>%s AND COALESCE(u.active,TRUE)=TRUE AND COALESCE(u.approval_status,'Approved')='Approved'
+                           ORDER BY CASE WHEN COALESCE(u.role,'Agent')='Admin' THEN 0 ELSE 1 END,LOWER(COALESCE(u.name,u.email,''))""",(current_user["id"],))
             rows=cur.fetchall()
-            cur.execute("""SELECT user_id FROM chat_presence
-                           WHERE last_seen >= NOW() - (%s * INTERVAL '1 second')""", (CHAT_ONLINE_SECONDS,))
-            active_ids={r[0] for r in cur.fetchall()}
-    users=[]
-    for r in rows:
-        payload=_chat_user_payload(r)
-        payload["online"]=r[0] in active_ids
-        users.append(payload)
-    return {"users":users}
-
-
-@app.post("/api/chat/presence")
-def chat_presence_heartbeat(current_user: dict = Depends(get_current_user)):
-    with db_conn() as conn:
-        with conn.cursor() as cur:
-            if not _chat_user_is_available(cur, current_user["id"]):
-                raise HTTPException(status_code=403, detail="Your account is not available for chat.")
-            _chat_touch_presence(cur, current_user["id"])
-        conn.commit()
-    return {"success": True, "online": True, "last_seen": datetime.now(timezone.utc).isoformat()}
+    return {"users":[{"id":r[0],"name":r[1],"email":r[2],"role":r[3],"active":bool(r[4]),"approval_status":r[5],
+                       "online":bool(r[6] and (datetime.now(timezone.utc)-r[6]).total_seconds()<=CHAT_ONLINE_SECONDS),"last_seen":str(r[6]) if r[6] else None} for r in rows]}
 
 
 @app.get("/api/chat/team-room")
 def get_team_room(current_user: dict = Depends(get_current_user)):
     with db_conn() as conn:
         with conn.cursor() as cur:
-            if not _chat_user_is_available(cur,current_user["id"]):
-                raise HTTPException(status_code=403,detail="Your account is not available for team chat.")
+            _require_chat_user(cur,current_user["id"])
             cur.execute("SELECT id,room_name FROM chat_team_room WHERE id=1")
             room=cur.fetchone()
             if not room:
                 cur.execute("INSERT INTO chat_team_room(id,room_name) VALUES(1,'Team Room') RETURNING id,room_name")
                 room=cur.fetchone()
-            cur.execute("""SELECT COUNT(*) FROM chat_team_messages
-                           WHERE room_id=1 AND sender_id<>%s
-                             AND id > COALESCE((SELECT last_read_message_id FROM chat_team_reads WHERE room_id=1 AND user_id=%s),0)""",
-                        (current_user["id"],current_user["id"]))
+            cur.execute("""SELECT COUNT(*) FROM chat_team_messages m WHERE m.room_id=1 AND m.sender_id<>%s
+                           AND m.id>COALESCE((SELECT last_read_message_id FROM chat_team_reads WHERE room_id=1 AND user_id=%s),0)""",(current_user["id"],current_user["id"]))
             unread=int(cur.fetchone()[0] or 0)
+        conn.commit()
     return {"room":{"id":room[0],"name":room[1],"unread_count":unread}}
 
 
@@ -2683,24 +2745,19 @@ def get_team_room(current_user: dict = Depends(get_current_user)):
 def get_team_room_messages(limit:int=Query(100,ge=1,le=200),before_id:Optional[int]=Query(None,gt=0),current_user:dict=Depends(get_current_user)):
     with db_conn() as conn:
         with conn.cursor() as cur:
-            if not _chat_user_is_available(cur,current_user["id"]):
-                raise HTTPException(status_code=403,detail="Your account is not available for team chat.")
-            sql="""SELECT m.id,m.room_id,m.sender_id,m.body,m.is_deleted,m.created_at,m.edited_at,m.reply_to_id,
-                            rm.body,rm.sender_id,u.name,u.email,u.role
+            _require_chat_user(cur,current_user["id"])
+            sql="""SELECT m.id,m.room_id,m.sender_id,m.body,m.created_at,m.edited_at,m.deleted_at,m.reply_to_id,
+                            rm.body,rm.sender_id,ru.name,u.name,u.email,u.role
                      FROM chat_team_messages m JOIN users u ON u.id=m.sender_id
                      LEFT JOIN chat_team_messages rm ON rm.id=m.reply_to_id
+                     LEFT JOIN users ru ON ru.id=rm.sender_id
                      WHERE m.room_id=1"""
             params=[]
-            if before_id is not None:
-                sql+=" AND m.id<%s";params.append(before_id)
+            if before_id is not None: sql+=" AND m.id<%s";params.append(before_id)
             sql+=" ORDER BY m.created_at DESC,m.id DESC LIMIT %s";params.append(limit)
-            cur.execute(sql,params); rows=list(reversed(cur.fetchall()))
-    return {"room":{"id":1,"name":"Team Room"},"messages":[
-        {"id":r[0],"room_id":r[1],"sender_id":r[2],"body":"This message was deleted." if r[4] else r[3],
-         "is_deleted":bool(r[4]),"created_at":str(r[5]),"edited_at":str(r[6]) if r[6] else None,
-         "reply_to_id":r[7],"reply_body":r[8],"reply_sender_id":r[9],
-         "sender":{"id":r[2],"name":r[10],"email":r[11],"role":r[12]},"is_mine":r[2]==current_user["id"]}
-        for r in rows]}
+            cur.execute(sql,params);rows=list(reversed(cur.fetchall()))
+            ids=[r[0] for r in rows];reactions=_chat_reactions(cur,team_ids=ids)
+    return {"room":{"id":1,"name":"Team Room"},"messages":[_team_message_payload(r,current_user["id"],reactions) for r in rows]}
 
 
 @app.post("/api/chat/team-room/messages")
@@ -2709,37 +2766,17 @@ def send_team_room_message(req:ChatMessageRequest,current_user:dict=Depends(get_
     if not body: raise HTTPException(status_code=400,detail="Message cannot be empty.")
     with db_conn() as conn:
         with conn.cursor() as cur:
-            if not _chat_user_is_available(cur,current_user["id"]):
-                raise HTTPException(status_code=403,detail="Your account is not available for team chat.")
-            reply_to_id=req.reply_to_id
-            if reply_to_id is not None:
-                cur.execute("SELECT id FROM chat_team_messages WHERE id=%s AND room_id=1", (reply_to_id,))
-                if not cur.fetchone():
-                    raise HTTPException(status_code=400, detail="Reply target message was not found in Team Room.")
-            cur.execute("INSERT INTO chat_team_messages(room_id,sender_id,body,reply_to_id) VALUES(1,%s,%s,%s) RETURNING id,created_at",(current_user["id"],body,reply_to_id))
+            _require_chat_user(cur,current_user["id"])
+            if req.reply_to_id:
+                cur.execute("SELECT id FROM chat_team_messages WHERE id=%s AND room_id=1",(req.reply_to_id,))
+                if not cur.fetchone(): raise HTTPException(status_code=400,detail="Reply target not found.")
+            cur.execute("""INSERT INTO chat_team_messages(room_id,sender_id,body,reply_to_id) VALUES(1,%s,%s,%s) RETURNING id,created_at""",(current_user["id"],body,req.reply_to_id))
             mid,created=cur.fetchone()
-            _chat_touch_presence(cur, current_user["id"])
-            cur.execute("""SELECT id FROM users WHERE id<>%s AND COALESCE(active,TRUE)=TRUE
-                           AND (COALESCE(approval_status,'Approved')='Approved' OR COALESCE(role,'Agent')='Admin')""",(current_user["id"],))
-            title=f"New team message from {(current_user.get('name') or current_user.get('email') or 'User')}"
+            cur.execute("SELECT id FROM users WHERE id<>%s AND COALESCE(active,TRUE)=TRUE AND COALESCE(approval_status,'Approved')='Approved'",(current_user["id"],))
             for (rid,) in cur.fetchall():
-                cur.execute("INSERT INTO notifications(recipient_id,actor_id,notification_type,title,message) VALUES(%s,%s,'chat_message',%s,%s)",(rid,current_user["id"],title,body[:250]))
+                cur.execute("""INSERT INTO notifications(recipient_id,actor_id,lead_id,notification_type,title,message) VALUES(%s,%s,NULL,'chat_message',%s,%s)""",(rid,current_user["id"],f"New team message from {(current_user.get('name') or current_user.get('email') or 'User')}",body[:250]))
         conn.commit()
     return {"success":True,"message":{"id":mid,"room_id":1,"sender_id":current_user["id"],"body":body,"created_at":str(created)}}
-
-
-@app.post("/api/chat/team-room/read")
-def mark_team_room_read(current_user:dict=Depends(get_current_user)):
-    with db_conn() as conn:
-        with conn.cursor() as cur:
-            if not _chat_user_is_available(cur,current_user["id"]): raise HTTPException(status_code=403,detail="Your account is not available for team chat.")
-            cur.execute("SELECT COALESCE(MAX(id),0) FROM chat_team_messages WHERE room_id=1"); last_id=int(cur.fetchone()[0] or 0)
-            cur.execute("""INSERT INTO chat_team_reads(room_id,user_id,last_read_message_id,last_read_at) VALUES(1,%s,%s,NOW())
-                           ON CONFLICT(room_id,user_id) DO UPDATE SET last_read_message_id=EXCLUDED.last_read_message_id,last_read_at=NOW()""",(current_user["id"],last_id))
-        conn.commit()
-    return {"success":True,"last_read_message_id":last_id}
-
-
 
 
 @app.patch("/api/chat/team-room/messages/{message_id}")
@@ -2747,95 +2784,96 @@ def edit_team_message(message_id:int,req:ChatEditMessageRequest,current_user:dic
     body=req.body.strip()
     with db_conn() as conn:
         with conn.cursor() as cur:
-            if not _chat_user_is_available(cur,current_user["id"]): raise HTTPException(status_code=403,detail="Your account is not available for team chat.")
-            cur.execute("UPDATE chat_team_messages SET body=%s,edited_at=NOW() WHERE id=%s AND sender_id=%s AND is_deleted=FALSE RETURNING id,edited_at",(body,message_id,current_user["id"]))
-            row=cur.fetchone()
-            if not row: raise HTTPException(status_code=404,detail="Message not found or cannot be edited.")
+            _require_chat_user(cur,current_user["id"])
+            cur.execute("UPDATE chat_team_messages SET body=%s,edited_at=NOW() WHERE id=%s AND sender_id=%s AND deleted_at IS NULL RETURNING id",(body,message_id,current_user["id"]))
+            if not cur.fetchone(): raise HTTPException(status_code=404,detail="Message not found or cannot be edited.")
         conn.commit()
-    return {"success":True,"message_id":row[0],"edited_at":str(row[1])}
+    return {"success":True}
 
 
 @app.delete("/api/chat/team-room/messages/{message_id}")
 def delete_team_message(message_id:int,current_user:dict=Depends(get_current_user)):
     with db_conn() as conn:
         with conn.cursor() as cur:
-            if not _chat_user_is_available(cur,current_user["id"]): raise HTTPException(status_code=403,detail="Your account is not available for team chat.")
-            cur.execute("UPDATE chat_team_messages SET is_deleted=TRUE,edited_at=NOW(),body='' WHERE id=%s AND sender_id=%s AND is_deleted=FALSE RETURNING id",(message_id,current_user["id"]))
-            row=cur.fetchone()
-            if not row: raise HTTPException(status_code=404,detail="Message not found or cannot be deleted.")
+            _require_chat_user(cur,current_user["id"])
+            cur.execute("UPDATE chat_team_messages SET deleted_at=NOW(),body='' WHERE id=%s AND sender_id=%s AND deleted_at IS NULL RETURNING id",(message_id,current_user["id"]))
+            if not cur.fetchone(): raise HTTPException(status_code=404,detail="Message not found or cannot be deleted.")
         conn.commit()
-    return {"success":True,"message_id":row[0]}
+    return {"success":True}
 
 
 @app.post("/api/chat/team-room/messages/{message_id}/reactions")
 def react_team_message(message_id:int,req:ChatReactionRequest,current_user:dict=Depends(get_current_user)):
     with db_conn() as conn:
         with conn.cursor() as cur:
-            if not _chat_user_is_available(cur,current_user["id"]): raise HTTPException(status_code=403,detail="Your account is not available for team chat.")
-            cur.execute("SELECT id FROM chat_team_messages WHERE id=%s AND room_id=1",(message_id,))
+            _require_chat_user(cur,current_user["id"])
+            cur.execute("SELECT id FROM chat_team_messages WHERE id=%s AND room_id=1 AND deleted_at IS NULL",(message_id,))
             if not cur.fetchone(): raise HTTPException(status_code=404,detail="Message not found.")
-            cur.execute("INSERT INTO chat_team_reactions(message_id,user_id,reaction) VALUES(%s,%s,%s) ON CONFLICT DO NOTHING",(message_id,current_user["id"],req.reaction.strip()))
+            cur.execute("DELETE FROM chat_message_reactions WHERE team_message_id=%s AND user_id=%s AND reaction=%s RETURNING id",(message_id,current_user["id"],req.reaction))
+            if not cur.fetchone():
+                cur.execute("INSERT INTO chat_message_reactions(team_message_id,user_id,reaction) VALUES(%s,%s,%s)",(message_id,current_user["id"],req.reaction))
         conn.commit()
     return {"success":True}
+
+
+@app.post("/api/chat/team-room/read")
+def mark_team_room_read(current_user:dict=Depends(get_current_user)):
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            _require_chat_user(cur,current_user["id"])
+            cur.execute("SELECT COALESCE(MAX(id),0) FROM chat_team_messages WHERE room_id=1");last_id=int(cur.fetchone()[0] or 0)
+            cur.execute("""INSERT INTO chat_team_reads(room_id,user_id,last_read_message_id,last_read_at) VALUES(1,%s,%s,NOW())
+                           ON CONFLICT(room_id,user_id) DO UPDATE SET last_read_message_id=EXCLUDED.last_read_message_id,last_read_at=NOW()""",(current_user["id"],last_id))
+        conn.commit()
+    return {"success":True,"last_read_message_id":last_id}
+
 
 @app.get("/api/chat/team-room/unread-count")
 def team_room_unread_count(current_user:dict=Depends(get_current_user)):
     with db_conn() as conn:
         with conn.cursor() as cur:
-            if not _chat_user_is_available(cur,current_user["id"]): raise HTTPException(status_code=403,detail="Your account is not available for team chat.")
-            cur.execute("""SELECT COUNT(*) FROM chat_team_messages WHERE room_id=1 AND sender_id<>%s
-                           AND id>COALESCE((SELECT last_read_message_id FROM chat_team_reads WHERE room_id=1 AND user_id=%s),0)""",(current_user["id"],current_user["id"]))
-            n=int(cur.fetchone()[0] or 0)
-    return {"unread_count":n}
+            _require_chat_user(cur,current_user["id"])
+            cur.execute("""SELECT COUNT(*) FROM chat_team_messages m WHERE m.room_id=1 AND m.sender_id<>%s
+                           AND m.id>COALESCE((SELECT last_read_message_id FROM chat_team_reads WHERE room_id=1 AND user_id=%s),0)""",(current_user["id"],current_user["id"]))
+            count=int(cur.fetchone()[0] or 0)
+    return {"unread_count":count}
 
 
 @app.get("/api/chat/conversations")
 def chat_conversations(current_user:dict=Depends(get_current_user)):
     with db_conn() as conn:
         with conn.cursor() as cur:
+            _require_chat_user(cur,current_user["id"])
             cur.execute("""SELECT c.id,c.user1_id,c.user2_id,c.created_at,c.last_message_at,
                                   u1.name,u1.email,u1.role,u2.name,u2.email,u2.role,
                                   COALESCE((SELECT COUNT(*) FROM chat_messages m WHERE m.conversation_id=c.id AND m.sender_id<>%s AND m.is_read=FALSE),0),
-                                  (SELECT CASE WHEN m.is_deleted THEN 'This message was deleted.' ELSE m.body END FROM chat_messages m WHERE m.conversation_id=c.id ORDER BY m.created_at DESC,m.id DESC LIMIT 1),
-                                  (SELECT m.sender_id FROM chat_messages m WHERE m.conversation_id=c.id ORDER BY m.created_at DESC,m.id DESC LIMIT 1)
+                                  (SELECT m.body FROM chat_messages m WHERE m.conversation_id=c.id ORDER BY m.created_at DESC,m.id DESC LIMIT 1),
+                                  (SELECT m.sender_id FROM chat_messages m WHERE m.conversation_id=c.id ORDER BY m.created_at DESC,m.id DESC LIMIT 1),
+                                  p1.last_seen,p2.last_seen
                            FROM chat_conversations c JOIN users u1 ON u1.id=c.user1_id JOIN users u2 ON u2.id=c.user2_id
-                           WHERE c.user1_id=%s OR c.user2_id=%s ORDER BY c.last_message_at DESC,c.id DESC""",
-                        (current_user["id"],current_user["id"],current_user["id"]))
+                           LEFT JOIN chat_presence p1 ON p1.user_id=u1.id LEFT JOIN chat_presence p2 ON p2.user_id=u2.id
+                           WHERE c.user1_id=%s OR c.user2_id=%s ORDER BY c.last_message_at DESC,c.id DESC""",(current_user["id"],current_user["id"],current_user["id"]))
             rows=cur.fetchall()
-    other_ids=[]
-    for r in rows:
-        other_ids.append(r[2] if r[1]==current_user["id"] else r[1])
-    presence={}
-    if other_ids:
-        cur_ids=tuple(set(other_ids))
-        with db_conn() as conn2:
-            with conn2.cursor() as cur2:
-                cur2.execute("SELECT user_id,last_seen FROM chat_presence WHERE user_id = ANY(%s)",(list(cur_ids),))
-                presence={int(x[0]):x[1] for x in cur2.fetchall()}
     out=[]
     for r in rows:
-        oid=r[2] if r[1]==current_user["id"] else r[1]
-        other={"id":oid,"name":r[8] if r[1]==current_user["id"] else r[5],"email":r[9] if r[1]==current_user["id"] else r[6],"role":r[10] if r[1]==current_user["id"] else r[7]}
-        if oid in presence:
-            other["last_seen"]=str(presence[oid]); other["online"]=(datetime.now(timezone.utc)-presence[oid]).total_seconds() <= CHAT_ONLINE_SECONDS
-        else:
-            other["online"]=False
-        out.append({"id":r[0],"other_user":other,"created_at":str(r[3]),"last_message_at":str(r[4]),"unread_count":int(r[11] or 0),"last_message":r[12],"last_sender_id":r[13]})
+        other_id=r[2] if r[1]==current_user["id"] else r[1];name=r[8] if r[1]==current_user["id"] else r[5];email=r[9] if r[1]==current_user["id"] else r[6];role=r[10] if r[1]==current_user["id"] else r[7];last_seen=r[15] if r[1]==current_user["id"] else r[14]
+        out.append({"id":r[0],"other_user":{"id":other_id,"name":name,"email":email,"role":role,"online":bool(last_seen and (datetime.now(timezone.utc)-last_seen).total_seconds()<=CHAT_ONLINE_SECONDS),"last_seen":str(last_seen) if last_seen else None},"created_at":str(r[3]),"last_message_at":str(r[4]),"unread_count":int(r[11] or 0),"last_message":r[12] or "","last_sender_id":r[13]})
     return {"conversations":out}
 
 
 @app.post("/api/chat/conversations")
 def start_chat(req:ChatStartRequest,current_user:dict=Depends(get_current_user)):
-    user1,user2=_chat_pair(current_user["id"],req.user_id)
     with db_conn() as conn:
         with conn.cursor() as cur:
+            _require_chat_user(cur,current_user["id"])
+            if req.user_id==current_user["id"]: raise HTTPException(status_code=400,detail="You cannot start a chat with yourself.")
             if not _chat_user_is_available(cur,req.user_id): raise HTTPException(status_code=404,detail="That user is not available for chat.")
-            cur.execute("""INSERT INTO chat_conversations(user1_id,user2_id) VALUES(%s,%s)
-                           ON CONFLICT(user1_id,user2_id) DO NOTHING RETURNING id""",(user1,user2))
-            row=cur.fetchone()
+            user1_id,user2_id=_chat_pair(current_user["id"],req.user_id)
+            cur.execute("INSERT INTO chat_conversations(user1_id,user2_id) VALUES(%s,%s) ON CONFLICT(user1_id,user2_id) DO NOTHING RETURNING id",(user1_id,user2_id));row=cur.fetchone()
             if row: cid=row[0]
             else:
-                cur.execute("SELECT id FROM chat_conversations WHERE user1_id=%s AND user2_id=%s",(user1,user2)); cid=cur.fetchone()[0]
+                cur.execute("SELECT id FROM chat_conversations WHERE user1_id=%s AND user2_id=%s",(user1_id,user2_id));row=cur.fetchone();cid=row[0] if row else None
+            if not cid: raise HTTPException(status_code=500,detail="Unable to create the chat conversation.")
         conn.commit()
     return {"success":True,"conversation_id":cid}
 
@@ -2844,22 +2882,19 @@ def start_chat(req:ChatStartRequest,current_user:dict=Depends(get_current_user))
 def chat_messages(conversation_id:int,limit:int=Query(100,ge=1,le=200),before_id:Optional[int]=Query(None,gt=0),current_user:dict=Depends(get_current_user)):
     with db_conn() as conn:
         with conn.cursor() as cur:
-            conversation=_chat_conversation_row(cur,conversation_id)
-            if not conversation: raise HTTPException(status_code=404,detail="Conversation not found.")
-            if not _chat_is_participant(conversation,current_user["id"]):
-                # Admins must not inspect private Agent-Agent conversations.
-                raise HTTPException(status_code=403,detail="Private chat access is limited to its participants.")
-            sql="""SELECT m.id,m.conversation_id,m.sender_id,m.body,m.is_read,m.created_at,m.edited_at,m.deleted_at,
-                          m.reply_to_id,rm.body,rm.sender_id,ru.name,u.name,u.email,u.role
+            _require_chat_user(cur,current_user["id"])
+            c=_chat_conversation_row(cur,conversation_id)
+            if not c: raise HTTPException(status_code=404,detail="Conversation not found.")
+            if not _chat_is_participant(c,current_user["id"]): raise HTTPException(status_code=403,detail="You do not have access to this conversation.")
+            sql="""SELECT m.id,m.conversation_id,m.sender_id,m.body,m.is_read,m.created_at,m.edited_at,m.deleted_at,m.reply_to_id,
+                          rm.body,rm.sender_id,ru.name,u.name,u.email,u.role
                    FROM chat_messages m JOIN users u ON u.id=m.sender_id
-                   LEFT JOIN chat_messages rm ON rm.id=m.reply_to_id
-                   LEFT JOIN users ru ON ru.id=rm.sender_id
-                   WHERE m.conversation_id=%s"""
-            params=[conversation_id]
+                   LEFT JOIN chat_messages rm ON rm.id=m.reply_to_id LEFT JOIN users ru ON ru.id=rm.sender_id
+                   WHERE m.conversation_id=%s""";params=[conversation_id]
             if before_id is not None: sql+=" AND m.id<%s";params.append(before_id)
             sql+=" ORDER BY m.created_at DESC,m.id DESC LIMIT %s";params.append(limit)
-            cur.execute(sql,params); rows=list(reversed(cur.fetchall()))
-    return {"conversation_id":conversation_id,"messages":[_chat_message_payload(r,current_user["id"]) for r in rows]}
+            cur.execute(sql,params);rows=list(reversed(cur.fetchall()));reactions=_chat_reactions(cur,private_ids=[r[0] for r in rows])
+    return {"conversation_id":conversation_id,"messages":[_chat_message_payload(r,current_user["id"],reactions) for r in rows]}
 
 
 @app.post("/api/chat/conversations/{conversation_id}/messages")
@@ -2868,44 +2903,18 @@ def send_chat_message(conversation_id:int,req:ChatMessageRequest,current_user:di
     if not body: raise HTTPException(status_code=400,detail="Message cannot be empty.")
     with db_conn() as conn:
         with conn.cursor() as cur:
-            conversation=_chat_conversation_row(cur,conversation_id)
-            if not conversation or not _chat_is_participant(conversation,current_user["id"]): raise HTTPException(status_code=403,detail="Only conversation participants can send messages.")
-            recipient=conversation[2] if conversation[1]==current_user["id"] else conversation[1]
-            reply_to_id=req.reply_to_id
-            if reply_to_id is not None:
-                cur.execute("SELECT id FROM chat_messages WHERE id=%s AND conversation_id=%s", (reply_to_id, conversation_id))
-                if not cur.fetchone():
-                    raise HTTPException(status_code=400, detail="Reply target message was not found in this conversation.")
-            cur.execute("INSERT INTO chat_messages(conversation_id,sender_id,body,is_read,reply_to_id) VALUES(%s,%s,%s,FALSE,%s) RETURNING id,created_at",(conversation_id,current_user["id"],body,reply_to_id))
-            mid,created=cur.fetchone()
-            _chat_touch_presence(cur, current_user["id"])
+            _require_chat_user(cur,current_user["id"]);c=_chat_conversation_row(cur,conversation_id)
+            if not c: raise HTTPException(status_code=404,detail="Conversation not found.")
+            if not _chat_is_participant(c,current_user["id"]): raise HTTPException(status_code=403,detail="Only conversation participants can send messages.")
+            if req.reply_to_id:
+                cur.execute("SELECT id FROM chat_messages WHERE id=%s AND conversation_id=%s",(req.reply_to_id,conversation_id))
+                if not cur.fetchone(): raise HTTPException(status_code=400,detail="Reply target not found.")
+            recipient_id=c[2] if c[1]==current_user["id"] else c[1]
+            cur.execute("INSERT INTO chat_messages(conversation_id,sender_id,body,is_read,reply_to_id) VALUES(%s,%s,%s,FALSE,%s) RETURNING id,created_at",(conversation_id,current_user["id"],body,req.reply_to_id));mid,created=cur.fetchone()
             cur.execute("UPDATE chat_conversations SET last_message_at=NOW() WHERE id=%s",(conversation_id,))
-            cur.execute("INSERT INTO notifications(recipient_id,actor_id,notification_type,title,message) VALUES(%s,%s,'chat_message',%s,%s)",(recipient,current_user["id"],f"New message from {(current_user.get('name') or current_user.get('email') or 'User')}",body[:250]))
+            cur.execute("INSERT INTO notifications(recipient_id,actor_id,lead_id,notification_type,title,message) VALUES(%s,%s,NULL,'chat_message',%s,%s)",(recipient_id,current_user["id"],f"New message from {(current_user.get('name') or current_user.get('email') or 'User')}",body[:250]))
         conn.commit()
     return {"success":True,"message":{"id":mid,"conversation_id":conversation_id,"sender_id":current_user["id"],"body":body,"is_read":False,"created_at":str(created)}}
-
-
-@app.post("/api/chat/conversations/{conversation_id}/read")
-def mark_chat_read(conversation_id:int,current_user:dict=Depends(get_current_user)):
-    with db_conn() as conn:
-        with conn.cursor() as cur:
-            conversation=_chat_conversation_row(cur,conversation_id)
-            if not conversation or not _chat_is_participant(conversation,current_user["id"]): raise HTTPException(status_code=403,detail="Private chat access is limited to its participants.")
-            _chat_touch_presence(cur, current_user["id"])
-            cur.execute("UPDATE chat_messages SET is_read=TRUE WHERE conversation_id=%s AND sender_id<>%s AND is_read=FALSE",(conversation_id,current_user["id"]))
-            n=cur.rowcount
-        conn.commit()
-    return {"success":True,"marked_read":n}
-
-
-@app.get("/api/chat/unread-count")
-def chat_unread_count(current_user:dict=Depends(get_current_user)):
-    with db_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""SELECT COUNT(*) FROM chat_messages m JOIN chat_conversations c ON c.id=m.conversation_id
-                           WHERE (c.user1_id=%s OR c.user2_id=%s) AND m.sender_id<>%s AND m.is_read=FALSE""",(current_user["id"],current_user["id"],current_user["id"]))
-            n=int(cur.fetchone()[0] or 0)
-    return {"unread_count":n}
 
 
 @app.patch("/api/chat/conversations/{conversation_id}/messages/{message_id}")
@@ -2913,78 +2922,63 @@ def edit_chat_message(conversation_id:int,message_id:int,req:ChatEditMessageRequ
     body=req.body.strip()
     with db_conn() as conn:
         with conn.cursor() as cur:
-            c=_chat_conversation_row(cur,conversation_id)
-            if not c or not _chat_is_participant(c,current_user["id"]): raise HTTPException(status_code=403,detail="Private chat access is limited to its participants.")
-            cur.execute("UPDATE chat_messages SET body=%s,edited_at=NOW() WHERE id=%s AND conversation_id=%s AND sender_id=%s AND deleted_at IS NULL RETURNING id,edited_at",(body,message_id,conversation_id,current_user["id"]))
-            row=cur.fetchone()
-            if not row: raise HTTPException(status_code=404,detail="Message not found or cannot be edited.")
+            _require_chat_user(cur,current_user["id"]);c=_chat_conversation_row(cur,conversation_id)
+            if not c or not _chat_is_participant(c,current_user["id"]): raise HTTPException(status_code=403,detail="You do not have access to this conversation.")
+            cur.execute("UPDATE chat_messages SET body=%s,edited_at=NOW() WHERE id=%s AND conversation_id=%s AND sender_id=%s AND deleted_at IS NULL RETURNING id",(body,message_id,conversation_id,current_user["id"]))
+            if not cur.fetchone(): raise HTTPException(status_code=404,detail="Message not found or cannot be edited.")
         conn.commit()
-    return {"success":True,"message_id":row[0],"edited_at":str(row[1])}
+    return {"success":True}
 
 
 @app.delete("/api/chat/conversations/{conversation_id}/messages/{message_id}")
 def delete_chat_message(conversation_id:int,message_id:int,current_user:dict=Depends(get_current_user)):
     with db_conn() as conn:
         with conn.cursor() as cur:
-            c=_chat_conversation_row(cur,conversation_id)
-            if not c or not _chat_is_participant(c,current_user["id"]): raise HTTPException(status_code=403,detail="Private chat access is limited to its participants.")
-            cur.execute("UPDATE chat_messages SET is_deleted=TRUE,deleted_at=NOW(),body='' WHERE id=%s AND conversation_id=%s AND sender_id=%s AND is_deleted=FALSE RETURNING id",(message_id,conversation_id,current_user["id"]))
-            row=cur.fetchone()
-            if not row: raise HTTPException(status_code=404,detail="Message not found or cannot be deleted.")
+            _require_chat_user(cur,current_user["id"]);c=_chat_conversation_row(cur,conversation_id)
+            if not c or not _chat_is_participant(c,current_user["id"]): raise HTTPException(status_code=403,detail="You do not have access to this conversation.")
+            cur.execute("UPDATE chat_messages SET deleted_at=NOW(),body='' WHERE id=%s AND conversation_id=%s AND sender_id=%s AND deleted_at IS NULL RETURNING id",(message_id,conversation_id,current_user["id"]))
+            if not cur.fetchone(): raise HTTPException(status_code=404,detail="Message not found or cannot be deleted.")
         conn.commit()
-    return {"success":True,"message_id":row[0]}
+    return {"success":True}
 
 
 @app.post("/api/chat/conversations/{conversation_id}/messages/{message_id}/reactions")
-def react_to_chat_message(conversation_id:int,message_id:int,req:ChatReactionRequest,current_user:dict=Depends(get_current_user)):
-    reaction=req.reaction.strip()
+def react_chat_message(conversation_id:int,message_id:int,req:ChatReactionRequest,current_user:dict=Depends(get_current_user)):
     with db_conn() as conn:
         with conn.cursor() as cur:
-            c=_chat_conversation_row(cur,conversation_id)
-            if not c or not _chat_is_participant(c,current_user["id"]): raise HTTPException(status_code=403,detail="Private chat access is limited to its participants.")
-            cur.execute("SELECT id FROM chat_messages WHERE id=%s AND conversation_id=%s",(message_id,conversation_id))
+            _require_chat_user(cur,current_user["id"]);c=_chat_conversation_row(cur,conversation_id)
+            if not c or not _chat_is_participant(c,current_user["id"]): raise HTTPException(status_code=403,detail="You do not have access to this conversation.")
+            cur.execute("SELECT id FROM chat_messages WHERE id=%s AND conversation_id=%s AND deleted_at IS NULL",(message_id,conversation_id))
             if not cur.fetchone(): raise HTTPException(status_code=404,detail="Message not found.")
-            cur.execute("""INSERT INTO chat_message_reactions(message_id,user_id,reaction) VALUES(%s,%s,%s)
-                           ON CONFLICT(message_id,user_id,reaction) DO NOTHING""",(message_id,current_user["id"],reaction))
+            cur.execute("DELETE FROM chat_message_reactions WHERE private_message_id=%s AND user_id=%s AND reaction=%s",(message_id,current_user["id"],req.reaction))
+            # Do not use RETURNING id here: older installations may have a
+            # legacy reactions table without an id column.
+            if cur.rowcount == 0:
+                cur.execute("INSERT INTO chat_message_reactions(private_message_id,user_id,reaction) VALUES(%s,%s,%s)",(message_id,current_user["id"],req.reaction))
         conn.commit()
     return {"success":True}
 
 
-@app.delete("/api/chat/conversations/{conversation_id}/messages/{message_id}/reactions/{reaction}")
-def remove_chat_reaction(conversation_id:int,message_id:int,reaction:str,current_user:dict=Depends(get_current_user)):
+@app.post("/api/chat/conversations/{conversation_id}/read")
+def mark_chat_read(conversation_id:int,current_user:dict=Depends(get_current_user)):
     with db_conn() as conn:
         with conn.cursor() as cur:
-            c=_chat_conversation_row(cur,conversation_id)
-            if not c or not _chat_is_participant(c,current_user["id"]): raise HTTPException(status_code=403,detail="Private chat access is limited to its participants.")
-            cur.execute("DELETE FROM chat_message_reactions WHERE message_id=%s AND user_id=%s AND reaction=%s",(message_id,current_user["id"],reaction))
+            _require_chat_user(cur,current_user["id"]);c=_chat_conversation_row(cur,conversation_id)
+            if not c: raise HTTPException(status_code=404,detail="Conversation not found.")
+            if not _chat_is_participant(c,current_user["id"]): raise HTTPException(status_code=403,detail="Only conversation participants can mark messages as read.")
+            cur.execute("UPDATE chat_messages SET is_read=TRUE WHERE conversation_id=%s AND sender_id<>%s AND is_read=FALSE",(conversation_id,current_user["id"]));count=cur.rowcount
         conn.commit()
-    return {"success":True}
+    return {"success":True,"marked_read":count}
 
 
-@app.get("/api/chat/conversations/{conversation_id}/search")
-def search_chat_messages(conversation_id:int,q:str=Query(...,min_length=1,max_length=200),current_user:dict=Depends(get_current_user)):
+@app.get("/api/chat/unread-count")
+def chat_unread_count(current_user:dict=Depends(get_current_user)):
     with db_conn() as conn:
         with conn.cursor() as cur:
-            c=_chat_conversation_row(cur,conversation_id)
-            if not c or not _chat_is_participant(c,current_user["id"]): raise HTTPException(status_code=403,detail="Private chat access is limited to its participants.")
-            cur.execute("""SELECT id,body,created_at,sender_id,is_deleted FROM chat_messages
-                           WHERE conversation_id=%s AND body ILIKE %s ORDER BY created_at DESC LIMIT 100""",(conversation_id,f"%{q.strip()}%"))
-            rows=cur.fetchall()
-    return {"messages":[{"id":r[0],"body":"This message was deleted." if r[4] else r[1],"created_at":str(r[2]),"sender_id":r[3],"is_deleted":bool(r[4])} for r in rows]}
+            _require_chat_user(cur,current_user["id"])
+            cur.execute("SELECT COUNT(*) FROM chat_messages m JOIN chat_conversations c ON c.id=m.conversation_id WHERE (c.user1_id=%s OR c.user2_id=%s) AND m.sender_id<>%s AND m.is_read=FALSE",(current_user["id"],current_user["id"],current_user["id"]));count=cur.fetchone()[0]
+    return {"unread_count":int(count)}
 
-
-@app.get("/api/chat/conversations/{conversation_id}/reactions")
-def get_chat_reactions(conversation_id:int,current_user:dict=Depends(get_current_user)):
-    with db_conn() as conn:
-        with conn.cursor() as cur:
-            c=_chat_conversation_row(cur,conversation_id)
-            if not c or not _chat_is_participant(c,current_user["id"]): raise HTTPException(status_code=403,detail="Private chat access is limited to its participants.")
-            cur.execute("SELECT message_id,user_id,reaction FROM chat_message_reactions WHERE message_id IN (SELECT id FROM chat_messages WHERE conversation_id=%s)",(conversation_id,))
-            rows=cur.fetchall()
-    return {"reactions":[{"message_id":r[0],"user_id":r[1],"reaction":r[2]} for r in rows]}
-
-
-# Admin has no private-chat inspection/control endpoint by design.
 
 # Groups
 
@@ -3139,8 +3133,489 @@ class AIResearchRequest(BaseModel):
     city: Optional[str] = Field(None,max_length=120)
     lead_id: Optional[int] = None
 
+def _ai_category_context(query: str, lead: Optional[dict]) -> str:
+    text = " ".join([
+        str(query or ""),
+        str((lead or {}).get("name") or ""),
+        str((lead or {}).get("category") or ""),
+    ]).casefold()
+
+    playbooks = [
+        (("salon","spa","beauty","barber","parlour","parlor"), {
+            "category": "Salon / Beauty",
+            "needs": [
+                "new appointment generation and local discovery",
+                "conversion of enquiries into booked appointments",
+                "repeat visits, packages and customer retention",
+                "fast handling of calls, messages and appointment enquiries"
+            ],
+            "opportunities": [
+                "local visibility and review/reputation journey",
+                "booking and enquiry follow-up",
+                "re-engagement of previous customers",
+                "clear presentation of services, pricing and offers"
+            ],
+            "questions": [
+                "Where do most new appointment enquiries come from today?",
+                "How quickly does the team respond to missed calls or online enquiries?",
+                "How do you bring previous customers back for their next visit?"
+            ]
+        }),
+        (("restaurant","cafe","coffee shop","bakery","food"), {
+            "category": "Restaurant / Food",
+            "needs": [
+                "local discovery and customer acquisition",
+                "conversion from online interest to visits or orders",
+                "repeat customers and retention",
+                "handling enquiries, reservations or order questions"
+            ],
+            "opportunities": [
+                "Google/local presence and reputation",
+                "reservation/order enquiry journey",
+                "repeat-visit and loyalty opportunities",
+                "menu, offer and location information clarity"
+            ],
+            "questions": [
+                "How do customers usually discover you for the first time?",
+                "What happens when someone enquires but does not visit or order?",
+                "How do you encourage satisfied customers to return?"
+            ]
+        }),
+        (("dentist","dental","clinic","hospital","doctor","medical"), {
+            "category": "Healthcare",
+            "needs": [
+                "patient discovery and appointment enquiries",
+                "conversion from enquiry to confirmed appointment",
+                "appointment reminders and follow-up",
+                "clear trust, service and location information"
+            ],
+            "opportunities": [
+                "local discovery and reputation",
+                "appointment enquiry handling",
+                "follow-up for unconfirmed enquiries",
+                "clear patient information before contact"
+            ],
+            "questions": [
+                "How do new patients normally find the practice?",
+                "How are appointment enquiries followed up if they do not book immediately?",
+                "Which types of appointments or services are you trying to grow?"
+            ]
+        }),
+        (("gym","fitness","yoga","sports club","wellness"), {
+            "category": "Fitness / Wellness",
+            "needs": [
+                "membership enquiries and trial conversion",
+                "local discovery and lead follow-up",
+                "member retention and reactivation",
+                "clear presentation of plans, classes and schedules"
+            ],
+            "opportunities": [
+                "trial-to-membership conversion",
+                "follow-up of enquiries that go cold",
+                "member reactivation",
+                "local visibility and reviews"
+            ],
+            "questions": [
+                "How do you currently convert trial or membership enquiries?",
+                "How quickly are new enquiries followed up?",
+                "What usually causes members to stop or become inactive?"
+            ]
+        }),
+        (("real estate","real estate agency","property","realtor","broker"), {
+            "category": "Real Estate",
+            "needs": [
+                "qualified enquiry generation",
+                "fast follow-up on property enquiries",
+                "lead qualification and appointment conversion",
+                "consistent follow-up across longer sales cycles"
+            ],
+            "opportunities": [
+                "property discovery and enquiry capture",
+                "lead response speed",
+                "follow-up sequences for interested prospects",
+                "qualification before agent time is spent"
+            ],
+            "questions": [
+                "Where do most property enquiries originate?",
+                "How quickly does an agent respond to a new enquiry?",
+                "How are interested prospects followed up after the first conversation?"
+            ]
+        }),
+        (("automobile","automotive","car dealer","car dealership","vehicle dealer","motor"), {
+            "category": "Automotive",
+            "needs": [
+                "vehicle discovery and qualified enquiries",
+                "test-drive or showroom appointment conversion",
+                "follow-up across longer purchase decisions",
+                "service and repeat-customer retention"
+            ],
+            "opportunities": [
+                "vehicle discovery and enquiry journey",
+                "test-drive lead follow-up",
+                "quotation follow-up",
+                "service reminders and repeat engagement"
+            ],
+            "questions": [
+                "How are vehicle enquiries captured and followed up today?",
+                "What happens to customers who ask for a quotation but do not buy immediately?",
+                "How do you bring existing customers back for service or future purchases?"
+            ]
+        }),
+        (("retail","shop","store","boutique","fashion","clothing","jewellery","jewelry"), {
+            "category": "Retail",
+            "needs": [
+                "local discovery and footfall",
+                "conversion of enquiries into purchases",
+                "repeat purchases and customer retention",
+                "clear product and offer communication"
+            ],
+            "opportunities": [
+                "local visibility and reputation",
+                "customer enquiry handling",
+                "repeat-customer engagement",
+                "product/offer discovery journey"
+            ],
+            "questions": [
+                "How do customers usually discover the store?",
+                "How do you follow up with customers who show interest but do not purchase?",
+                "How do you encourage repeat purchases?"
+            ]
+        }),
+    ]
+
+    for keywords, data in playbooks:
+        if any(k in text for k in keywords):
+            return json.dumps(data, ensure_ascii=False)
+
+    generic = {
+        "category": str((lead or {}).get("category") or query or "Unknown business category"),
+        "needs": [
+            "customer discovery and acquisition",
+            "conversion of enquiries into customers",
+            "follow-up and customer retention",
+            "a clear and low-friction customer journey"
+        ],
+        "opportunities": [
+            "local/online visibility",
+            "lead and enquiry response",
+            "conversion points in the customer journey",
+            "repeat-customer engagement"
+        ],
+        "questions": [
+            "How do customers usually discover the business?",
+            "What happens after a new enquiry is received?",
+            "How are previous customers encouraged to return?"
+        ]
+    }
+    return json.dumps(generic, ensure_ascii=False)
+
 def _ai_research_prompt(query,city,lead,snippets):
-    return f"""Act as a practical B2B sales research assistant. Use only the supplied lead data and public search snippets. Never invent facts. Business/query: {query}. City: {city or 'unknown'}. Lead data: {json.dumps(lead or {},default=str)[:8000]}. Search snippets: {json.dumps(snippets,default=str)[:12000]}. Return ONLY JSON with keys business_summary, likely_needs, recommended_offer, contact_strategy, opening_pitch, talking_points, risks_or_unknowns, next_action. Make it concise and directly useful to an agent."""
+    category_context = _ai_category_context(query, lead)
+    return f"""
+You are a B2B business-intelligence researcher inside a lead-generation CRM.
+Research ONE SPECIFIC BUSINESS, not the business category in general.
+
+EVIDENCE PRIORITY
+1. Lead Data = CRM facts.
+2. Structured public business evidence = strongest external evidence.
+3. Public search snippets = supporting evidence.
+4. Category Context = reasoning only, never a fact about this business.
+
+RULES
+- what_they_have contains ONLY concrete facts supported by Lead Data or public evidence.
+- Prefer address, phone, website, hours, services/products, booking/order channels, locations, ratings/review counts, and stated offers.
+- Never say the business lacks something merely because it was not found.
+- Do not turn review opinions into objective facts.
+- what_they_may_need contains 2-4 hypotheses/opportunities, each tied to a verified fact or evidence gap and briefly explaining why.
+- Use may/could/worth investigating. Never present a category assumption as a confirmed problem.
+- what_we_can_offer maps 1:1 to opportunities and describes solution TYPES only. Never invent the user's company services, pricing, tools, clients, or capabilities.
+- how_to_approach identifies a likely decision-maker, uses one verified fact, tests one hypothesis, and asks a discovery question.
+- opening_pitch uses a real business fact and a discovery question.
+- next_action is one concrete sales action.
+
+BUSINESS QUERY:
+{query}
+CITY:
+{city or "Unknown"}
+LEAD DATA:
+{json.dumps(lead or {},default=str)[:14000]}
+PUBLIC BUSINESS EVIDENCE:
+{json.dumps(snippets,default=str)[:24000]}
+CATEGORY CONTEXT:
+{category_context}
+
+Return ONLY valid JSON with exactly these keys:
+{{
+  "business_snapshot": "One concise sentence using verified facts only.",
+  "what_they_have": [{{"fact":"Concrete verified fact","source":"Exact source/domain or Lead Data"}}],
+  "what_they_may_need": ["Potential opportunity + why it is relevant to this business"],
+  "what_we_can_offer": ["Potential solution area mapped to the opportunity"],
+  "how_to_approach": "2-4 concise sentences",
+  "opening_pitch": "2-3 natural sentences",
+  "next_action": "One concrete next action"
+}}
+Keep it specific enough that a salesperson can act in 30 seconds.
+"""
+
+def _ai_clean_text(value):
+    if value is None: return ""
+    return re.sub(r"\s+", " ", str(value)).strip()
+
+def _ai_add_evidence(evidence, fact, source):
+    fact=_ai_clean_text(fact); source=_ai_clean_text(source) or "Public search evidence"
+    if not fact: return
+    if any(x["fact"].casefold()==fact.casefold() for x in evidence): return
+    evidence.append({"fact":fact,"source":source})
+
+class _AIPageParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.title=[]; self.meta={}; self.text=[]; self._in_title=False
+        self.jsonld=[]; self._in_script=False; self._script_type=""; self._script_buf=[]
+    def handle_starttag(self, tag, attrs):
+        a=dict(attrs)
+        if tag.lower()=="title": self._in_title=True
+        if tag.lower()=="meta":
+            key=a.get("name") or a.get("property")
+            val=a.get("content")
+            if key and val: self.meta[key.lower()]=val.strip()
+        if tag.lower()=="script" and (a.get("type") or "").lower()=="application/ld+json":
+            self._in_script=True; self._script_buf=[]
+    def handle_endtag(self, tag):
+        if tag.lower()=="title": self._in_title=False
+        if tag.lower()=="script" and self._in_script:
+            self._in_script=False
+            if self._script_buf: self.jsonld.append("".join(self._script_buf))
+    def handle_data(self, data):
+        if self._in_title: self.title.append(data)
+        if self._in_script: self._script_buf.append(data)
+        if data.strip(): self.text.append(data.strip())
+
+def _ai_safe_public_url(url):
+    try:
+        from urllib.parse import urlparse
+        import ipaddress
+        p=urlparse(url)
+        if p.scheme not in ("http","https") or not p.hostname: return False
+        host=p.hostname.lower()
+        if host in {"localhost","127.0.0.1","0.0.0.0","::1"}: return False
+        try:
+            ip=ipaddress.ip_address(host)
+            if ip.is_private or ip.is_loopback or ip.is_link_local: return False
+        except ValueError: pass
+        return True
+    except Exception:
+        return False
+
+def _ai_extract_page(url):
+    if not _ai_safe_public_url(url): return []
+    evidence=[]
+    try:
+        r=requests.get(url,headers={"User-Agent":"Mozilla/5.0 (compatible; LeadSearchEngine/1.0)"},timeout=8,allow_redirects=True)
+        if r.status_code!=200 or "text/html" not in (r.headers.get("content-type") or "").lower(): return []
+        parser=_AIPageParser(); parser.feed(r.text[:800000])
+        source=url.split("/",3)[2]
+        title=_ai_clean_text(" ".join(parser.title))
+        desc=_ai_clean_text(parser.meta.get("description") or parser.meta.get("og:description"))
+        if title: _ai_add_evidence(evidence,f"Website title: {title}",source)
+        if desc: _ai_add_evidence(evidence,f"Website description: {desc[:500]}",source)
+        body=" ".join(parser.text)
+        patterns=[
+            ("Phone",r"(?:\+?\d[\d\s().-]{7,}\d)"),
+            ("Email",r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"),
+        ]
+        for label,pat in patterns:
+            vals=[]
+            for m in re.findall(pat,body,re.I):
+                v=_ai_clean_text(m)
+                if v and v not in vals: vals.append(v)
+            for v in vals[:3]: _ai_add_evidence(evidence,f"{label}: {v}",source)
+        for raw in parser.jsonld[:10]:
+            try:
+                obj=json.loads(raw)
+            except Exception: continue
+            objs=obj if isinstance(obj,list) else [obj]
+            for o in objs:
+                if not isinstance(o,dict): continue
+                typ=str(o.get("@type") or "")
+                if not any(x in typ.casefold() for x in ("localbusiness","organization","restaurant","store","beautysalon","cafe","medicalbusiness")): continue
+                mapping=[("Business name","name"),("Address","address"),("Phone","telephone"),("Website","url"),("Opening hours","openingHours"),("Business category","servesCuisine"),("Description","description")]
+                for label,key in mapping:
+                    val=o.get(key)
+                    if isinstance(val,dict):
+                        parts=[]
+                        for k in ("streetAddress","addressLocality","addressRegion","postalCode","addressCountry"):
+                            if val.get(k): parts.append(str(val[k]))
+                        val=", ".join(parts)
+                    if isinstance(val,list): val="; ".join(str(x) for x in val)
+                    if val not in (None,"",[],{}): _ai_add_evidence(evidence,f"{label}: {val}",source)
+        # Pull a compact, human-readable services/menu description only when the page exposes it.
+        service_hits=[]
+        for term in ("services","service","menu","treatments","products","appointments","booking","order online"):
+            if re.search(r"\b"+re.escape(term)+r"\b",body,re.I): service_hits.append(term)
+        if service_hits: _ai_add_evidence(evidence,"Website sections mention: "+", ".join(service_hits[:8]),source)
+    except Exception:
+        return []
+    return evidence[:20]
+
+def _ai_name_match(query,name,address=""):
+    q=set(re.findall(r"[a-z0-9]+",query.casefold()))
+    n=set(re.findall(r"[a-z0-9]+",f"{name} {address}".casefold()))
+    if not q or not n: return False
+    overlap=len(q & n)/max(1,min(len(q),len(n)))
+    return overlap >= 0.45 or query.casefold() in f"{name} {address}".casefold() or name.casefold() in query.casefold()
+
+def _ai_public_business_evidence(query, city):
+    """Collect layered, business-specific public evidence before asking Gemini to reason."""
+    evidence=[]; links=[]
+    q=_ai_clean_text(query); location=_ai_clean_text(city); search_q=f'"{q}" {location}'.strip()
+    if not SERPAPI_API_KEY:
+        return evidence
+    # Layer 1: Google organic results. Run a few focused queries to avoid relying on one generic snippet.
+    search_queries=[search_q, f'"{q}" {location} official website', f'"{q}" {location} phone hours services']
+    seen_links=set()
+    for sq in search_queries:
+        try:
+            data=serpapi_get({"engine":"google","q":sq,"hl":"en","gl":"in"},timeout=15)
+            for x in (data.get("organic_results") or [])[:8]:
+                title=_ai_clean_text(x.get("title")) or "Google search result"
+                snippet=_ai_clean_text(x.get("snippet")); link=_ai_clean_text(x.get("link"))
+                if snippet: _ai_add_evidence(evidence,snippet[:600],title+(f" · {link}" if link else ""))
+                if link and link not in seen_links and _ai_safe_public_url(link):
+                    seen_links.add(link); links.append(link)
+        except Exception: pass
+    # Layer 2: structured Google Maps result.
+    matched_maps=[]
+    try:
+        maps=serpapi_get({"engine":"google_maps","q":search_q,"type":"search","hl":"en","gl":"in"},timeout=15)
+        for item in (maps.get("local_results") or [])[:8]:
+            name=_ai_clean_text(item.get("title")); address=_ai_clean_text(item.get("address"))
+            if name and _ai_name_match(q,name,address): matched_maps.append(item)
+        for item in matched_maps[:2]:
+            source="Google Maps"
+            for label,key in [("Business name","title"),("Category","type"),("Address","address"),("Phone","phone"),("Website","website"),("Rating","rating"),("Review count","reviews"),("Opening hours","hours"),("Price level","price"),("Description","description")]:
+                value=item.get(key)
+                if value not in (None,"",[],{}): _ai_add_evidence(evidence,f"{label}: {value}",source)
+            for key in ("service_options","extensions"):
+                value=item.get(key)
+                if value: _ai_add_evidence(evidence,f"Public listing details: {value}",source)
+            website=item.get("website")
+            if website and _ai_safe_public_url(str(website)): links.insert(0,str(website))
+    except Exception: pass
+    # Layer 3: fetch a small number of public result pages, prioritizing likely official websites.
+    def link_priority(u):
+        low=u.casefold(); score=0
+        for host in ("facebook.com","instagram.com","justdial.com","magicpin.in","tripadvisor.","zomato.com"):
+            if host in low: score-=2
+        for marker in ("official","/contact","/about","/services","/menu"):
+            if marker in low: score+=1
+        return score
+    for link in sorted(links,key=link_priority,reverse=True)[:4]:
+        for fact in _ai_extract_page(link): _ai_add_evidence(evidence,fact["fact"],fact["source"])
+    return evidence[:40]
+
+def _ai_research_prompt(query,city,lead,snippets):
+    category_context=_ai_category_context(query,lead)
+    return f"""
+You are the research analyst inside a B2B lead-generation CRM.
+Your job is to turn public evidence about ONE SPECIFIC BUSINESS into useful sales intelligence.
+Do not write a generic industry report.
+
+EVIDENCE HIERARCHY
+A. Lead Data = CRM fact.
+B. Google Maps / official business website = high-confidence public evidence.
+C. Other public listings/search results = supporting evidence; reviews are opinions, not hard facts.
+D. Category Context = reasoning only. Never present it as a fact about the business.
+
+WHAT THEY HAVE
+- Return 4-8 concrete facts when evidence exists: name, category, location/address, phone, website, hours, services/products, booking/order channels, ratings/review count, locations, stated offers.
+- Never write “they do not have X” merely because X was not found.
+- Never convert a reviewer's opinion into a business fact.
+- Each fact must include its source.
+
+WHAT THEY MAY NEED
+Return 2-4 BUSINESS-SPECIFIC opportunities.
+Each opportunity MUST be an object with:
+- opportunity: concise hypothesis
+- evidence: which verified fact(s) make this worth investigating
+- why: business-specific reasoning, not generic industry advice
+- discovery_question: one question a salesperson can ask
+Use “may”, “could”, or “worth investigating”. Never claim an unverified problem.
+
+WHAT WE CAN OFFER
+Map each opportunity to a potential solution TYPE only.
+Do not invent the user's company services, products, pricing, clients, or capabilities.
+Each item should contain: solution_area + linked_opportunity.
+
+HOW TO APPROACH
+Identify the likely decision-maker, cite one verified fact, test one hypothesis, and give a discovery question.
+
+OPENING PITCH
+2-3 natural sentences. Use a real verified fact and one discovery question. Do not make unsupported claims.
+
+NEXT ACTION
+One concrete action that can be completed before/at outreach.
+
+BUSINESS QUERY:
+{query}
+CITY:
+{city or "Unknown"}
+LEAD DATA:
+{json.dumps(lead or {},default=str)[:16000]}
+PUBLIC EVIDENCE:
+{json.dumps(snippets,default=str)[:30000]}
+CATEGORY CONTEXT:
+{category_context}
+
+Return ONLY JSON:
+{{
+  "business_snapshot":"...",
+  "research_confidence":"high|medium|low",
+  "what_they_have":[{{"fact":"...","source":"..."}}],
+  "what_they_may_need":[{{"opportunity":"...","evidence":"...","why":"...","discovery_question":"..."}}],
+  "what_we_can_offer":[{{"solution_area":"...","linked_opportunity":"..."}}],
+  "how_to_approach":"...",
+  "opening_pitch":"...",
+  "next_action":"..."
+}}
+"""
+
+def _ai_normalize_research(result, query, city, lead, evidence):
+    result=result if isinstance(result,dict) else {}
+    facts=[]
+    for x in result.get("what_they_have") or []:
+        if isinstance(x,dict):
+            fact=_ai_clean_text(x.get("fact")); source=_ai_clean_text(x.get("source")) or "Public evidence"
+        else: fact=_ai_clean_text(x); source="Model output — verify"
+        if fact: _ai_add_evidence(facts,fact,source)
+    # Always supplement model facts from hard evidence, but never fabricate.
+    for x in evidence:
+        _ai_add_evidence(facts,x.get("fact"),x.get("source"))
+    needs=[]
+    raw_needs=result.get("what_they_may_need") or result.get("likely_needs") or []
+    for x in raw_needs:
+        if isinstance(x,dict):
+            item={k:_ai_clean_text(x.get(k)) for k in ("opportunity","evidence","why","discovery_question")}
+            if item["opportunity"]: needs.append(item)
+        elif _ai_clean_text(x): needs.append({"opportunity":_ai_clean_text(x),"evidence":"Validate against the business evidence.","why":"Potential opportunity; not a confirmed problem.","discovery_question":"How do you currently handle this today?"})
+    offers=[]
+    raw_offers=result.get("what_we_can_offer") or result.get("recommended_offer") or []
+    for x in raw_offers:
+        if isinstance(x,dict):
+            sa=_ai_clean_text(x.get("solution_area") or x.get("solution") or x.get("offer")); lo=_ai_clean_text(x.get("linked_opportunity"))
+        else: sa=_ai_clean_text(x); lo=""
+        if sa: offers.append({"solution_area":sa,"linked_opportunity":lo})
+    if not result.get("business_snapshot"):
+        name=(lead or {}).get("name") or query; cat=(lead or {}).get("category") or "business"
+        result["business_snapshot"]=f"{name} — {cat}, based on CRM and public evidence." 
+    result["what_they_have"]=facts[:10]
+    result["what_they_may_need"]=needs[:4]
+    result["what_we_can_offer"]=offers[:4]
+    result["research_confidence"]=_ai_clean_text(result.get("research_confidence")) or ("high" if len(facts)>=5 else "medium" if facts else "low")
+    result["how_to_approach"]=_ai_clean_text(result.get("how_to_approach") or result.get("contact_strategy") or result.get("recommended_approach"))
+    result["opening_pitch"]=_ai_clean_text(result.get("opening_pitch"))
+    result["next_action"]=_ai_clean_text(result.get("next_action")) or "Verify the first opportunity with the owner or manager."
+    return result
 
 @app.post('/api/ai-research')
 def ai_research(req:AIResearchRequest,current_user:dict=Depends(get_current_user)):
@@ -3150,27 +3625,27 @@ def ai_research(req:AIResearchRequest,current_user:dict=Depends(get_current_user
             if req.lead_id is not None:
                 lead_owner_check(cur,req.lead_id,current_user)
                 cur.execute(LEAD_SELECT+' WHERE id=%s',(req.lead_id,)); r=cur.fetchone(); lead=row_to_lead(r) if r else None
-    snippets=[]
-    if SERPAPI_API_KEY:
-        try:
-            data=serpapi_get({'engine':'google','q':f"{req.query} {req.city or ''}",'hl':'en','gl':'in'},timeout=15)
-            snippets=[{'title':x.get('title'),'snippet':x.get('snippet'),'link':x.get('link')} for x in (data.get('organic_results') or [])[:8]]
-        except Exception: pass
+    evidence=_ai_public_business_evidence(req.query,req.city)
     result={}
     if GEMINI_API_KEY:
         try:
             url=f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
-            r=requests.post(url,json={'contents':[{'parts':[{'text':_ai_research_prompt(req.query,req.city,lead,snippets)}]}]},timeout=20)
+            payload={"contents":[{"parts":[{"text":_ai_research_prompt(req.query,req.city,lead,evidence)}]}],"generationConfig":{"temperature":0.15,"responseMimeType":"application/json"}}
+            r=requests.post(url,json=payload,timeout=35)
             if r.status_code==200:
-                text=r.json()['candidates'][0]['content']['parts'][0]['text'].strip(); text=re.sub(r'^```(?:json)?\s*|\s*```$','',text,flags=re.I); result=json.loads(text)
-        except Exception: result={}
+                raw=r.json().get("candidates",[{}])[0].get("content",{}).get("parts",[{}])[0].get("text","").strip()
+                raw=re.sub(r'^```(?:json)?\s*|\s*```$','',raw,flags=re.I).strip()
+                result=json.loads(raw)
+        except Exception:
+            result={}
     if not result:
-        result={'business_summary':lead.get('name') if lead else req.query,'likely_needs':['Verify current online presence and lead-generation needs before outreach.'],'recommended_offer':'Start with a short discovery/audit conversation based on verified gaps.','contact_strategy':'Use a concise, specific opener and ask one discovery question.','opening_pitch':'Hi, I was looking at your business presence and wanted to ask one quick question about how you currently generate new customers.','talking_points':['Current lead generation','Website and online presence','Customer acquisition challenges'],'risks_or_unknowns':['Public information was limited; verify facts before making claims.'],'next_action':'Verify the key facts and contact the lead.'}
+        category=json.loads(_ai_category_context(req.query,lead)).get("category") or (lead or {}).get("category") or "business"
+        result={"business_snapshot":f"{(lead or {}).get('name') or req.query} — {category}, based on available evidence.","what_they_have":evidence[:8],"what_they_may_need":[],"what_we_can_offer":[],"how_to_approach":"Contact the owner or manager, lead with a verified fact, and validate one opportunity before proposing a solution.","opening_pitch":f"Hi, I was researching {(lead or {}).get('name') or req.query}. I found a few public details and wanted to understand how you currently handle new customer enquiries. Would you be open to a quick conversation?","next_action":"Verify the first opportunity directly with the owner or manager."}
+    result=_ai_normalize_research(result,req.query,req.city,lead,evidence)
     with db_conn() as conn:
-        with conn.cursor() as cur:
-            log_activity(cur,current_user["id"],req.lead_id,"ai_research_completed",{"query":req.query,"city":req.city})
+        with conn.cursor() as cur: log_activity(cur,current_user["id"],req.lead_id,"ai_research_completed",{"query":req.query,"city":req.city,"evidence_count":len(evidence),"confidence":result.get("research_confidence")})
         conn.commit()
-    return {'success':True,'query':req.query,'city':req.city,'lead':lead,'sources':snippets,'research':result}
+    return {"success":True,"query":req.query,"city":req.city,"lead":lead,"sources":evidence,"research":result}
 
 # Search history / export / health
 
