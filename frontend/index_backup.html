@@ -1,637 +1,781 @@
 <!doctype html>
-
 <html lang="en">
-
 <head>
-
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-
 <title>Lead Search Engine</title>
-
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
+/* ============================================================
+   LEAD SEARCH ENGINE — PREMIUM DARK EDITION
+   Visual redesign only. All DOM IDs, classes used by JS,
+   and API integration preserved 1:1.
+   ============================================================ */
+:root{
+  --bg:#0a0d0c;
+  --bg-2:#0d100f;
+  --surface:#121614;
+  --surface-2:#171c1a;
+  --surface-3:#1c2320;
+  --line:#212926;
+  --line-2:#2a332f;
+  --text:#e9efeb;
+  --muted:#8d9891;
+  --faint:#5f6a64;
+  --lime:#a3e635;
+  --lime-2:#c1f25e;
+  --lime-dim:rgba(163,230,53,.10);
+  --lime-line:rgba(163,230,53,.28);
+  --green:#3ecf8e;
+  --green-dim:rgba(62,207,142,.12);
+  --red:#e5484d;
+  --red-dim:rgba(229,72,77,.12);
+  --amber:#f5a524;
+  --amber-dim:rgba(245,165,36,.12);
+  --radius:14px;
+  --radius-sm:10px;
+  --font:"Inter",-apple-system,"Segoe UI",sans-serif;
+  --display:"Space Grotesk",var(--font);
+  --shadow:0 1px 0 rgba(255,255,255,.03) inset,0 10px 30px rgba(0,0,0,.35);
+  --shadow-lg:0 24px 60px rgba(0,0,0,.5);
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 var(--font);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+/* Ambient background: layered radial glows + fine noise */
+body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background:
+    radial-gradient(900px 500px at 85% -10%,rgba(163,230,53,.06),transparent 60%),
+    radial-gradient(700px 500px at -10% 30%,rgba(62,207,142,.05),transparent 60%),
+    radial-gradient(800px 600px at 50% 120%,rgba(163,230,53,.04),transparent 60%),
+    var(--bg);}
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='.05'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+a{color:var(--lime);text-decoration:none}
+::selection{background:rgba(163,230,53,.25)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#2a332f;border-radius:99px;border:3px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:var(--faint)}
+.hidden{display:none!important}
+.muted{color:var(--muted);font-size:12px}
+.wrap{max-width:1420px;margin:auto;padding:22px 22px 60px;display:flex;flex-direction:column;gap:16px}
 
-:root{--green:#16834a;--green2:#0f6639;--bg:#f5f7f6;--card:#fff;--text:#17211b;--muted:#6d7771;--line:#e0e6e2;--red:#c93434;--amber:#a66b08;--blue:#2864a5;--purple:#704ca5;--shadow:0 2px 12px rgba(15,40,25,.06)}
+/* ---------- typography ---------- */
+h1,h2,h3{margin:0;font-family:var(--display);letter-spacing:-.02em}
+h1{font-size:26px;font-weight:700}
+h2{font-size:17px;font-weight:600}
+h3{font-size:13px;font-weight:600;letter-spacing:.01em}
 
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px Arial,Segoe UI,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:none!important}.muted{color:var(--muted);font-size:12px}.wrap{max-width:1380px;margin:auto;padding:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow);margin-bottom:14px}.top{height:60px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 18px;gap:18px;position:sticky;top:0;z-index:20}.brand{font-size:18px;font-weight:800;white-space:nowrap}.brand span{color:var(--green)}.nav{display:flex;gap:4px;overflow:auto}.nav button{border:0;background:transparent;color:var(--muted);font-weight:700;padding:9px 12px;border-radius:8px;white-space:nowrap}.nav button.active{background:#eaf5ee;color:var(--green2)}.userbar{margin-left:auto;display:flex;align-items:center;gap:9px;white-space:nowrap}.avatar{width:30px;height:30px;border-radius:50%;background:#eaf5ee;color:var(--green2);display:grid;place-items:center;font-weight:800;font-size:12px}
+/* ---------- cards / surfaces ---------- */
+.card{background:linear-gradient(180deg,var(--surface-2),var(--surface));border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.stat{background:linear-gradient(180deg,var(--surface-2),var(--surface));border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+.card,.stat{animation:rise .5s var(--ease) both}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
-button.primary{background:var(--green);color:#fff;border:1px solid var(--green);padding:9px 13px;border-radius:8px;font-weight:700}button.primary:hover{background:var(--green2)}button.secondary{background:#fff;color:var(--green2);border:1px solid #b9d7c4;padding:8px 11px;border-radius:8px;font-weight:700}button.danger{background:#fff;color:var(--red);border:1px solid #e7b0b0;padding:8px 11px;border-radius:8px;font-weight:700}.toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.push{margin-left:auto}.page{display:none}.page.active{display:block}h1,h2,h3{margin:0 0 7px}h1{font-size:24px}h2{font-size:18px}h3{font-size:14px}
+/* ---------- buttons ---------- */
+button.primary{background:var(--lime);color:#0c1103;border-radius:var(--radius-sm);padding:9px 15px;font-weight:700;font-size:13px;letter-spacing:.01em;transition:transform .18s var(--ease),box-shadow .18s ease,background .18s ease;box-shadow:0 0 0 1px rgba(163,230,53,.4),0 6px 18px rgba(163,230,53,.12)}
+button.primary:hover{background:var(--lime-2);transform:translateY(-1px);box-shadow:0 0 0 1px rgba(163,230,53,.5),0 10px 26px rgba(163,230,53,.2)}
+button.primary:active{transform:scale(.97)}
+button.secondary{background:var(--surface-3);color:var(--text);border:1px solid var(--line-2);padding:8px 12px;border-radius:var(--radius-sm);font-weight:600;font-size:12.5px;transition:transform .18s var(--ease),border-color .18s ease,background .18s ease}
+button.secondary:hover{border-color:var(--faint);background:#222a27;transform:translateY(-1px)}
+button.secondary:active{transform:scale(.97)}
+button.danger{background:var(--red-dim);color:#ff8589;border:1px solid rgba(229,72,77,.3);padding:8px 12px;border-radius:var(--radius-sm);font-weight:600;font-size:12.5px;transition:all .18s ease}
+button.danger:hover{background:rgba(229,72,77,.2);transform:translateY(-1px)}
+button:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+button:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
 
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.metric-search{border-top:4px solid var(--green)}.metric-calls{border-top:4px solid var(--blue)}.metric-follow{border-top:4px solid var(--amber)}.metric-success{border-top:4px solid #7b4fc4}.perf-select{width:140px}.performance-card{overflow:hidden}.performance-table{min-width:900px}.rank-ring{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--ring-color) calc(var(--score) * 1%),#edf1ee 0);position:relative;font-weight:800}.rank-ring:after{content:"";position:absolute;inset:5px;background:#fff;border-radius:50%;z-index:0}.rank-ring span{position:relative;z-index:1;font-size:11px}.perf-name{display:flex;align-items:center;gap:9px}.success-num{color:var(--green);font-weight:800}.failure-num{color:var(--red);font-weight:800}.perf-bar{height:7px;width:90px;background:#edf1ee;border-radius:20px;overflow:hidden}.perf-bar i{display:block;height:100%;width:var(--p);background:var(--ring-color);border-radius:20px}.stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px}.stat b{display:block;font-size:25px}.stat span{color:var(--muted);font-size:11px}.hero{display:flex;align-items:center;justify-content:space-between;gap:14px}.hero p{margin:0;color:var(--muted);font-size:13px}.search-box{display:grid;grid-template-columns:1.1fr 1fr 1.4fr .6fr auto;gap:9px;align-items:end}.field label{display:block;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:5px}.field input,.field select,.field textarea,input,select,textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#fff;color:var(--text)}.checks{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px}.checks label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px}.checks input{width:auto}
+/* ---------- inputs ---------- */
+input,select,textarea{width:100%;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--radius-sm);padding:9px 11px;font-size:13px;color:var(--text);transition:border-color .18s ease,box-shadow .18s ease,background .18s ease}
+input::placeholder,textarea::placeholder{color:var(--faint)}
+input:hover,select:hover,textarea:hover{border-color:var(--faint)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--lime-line);box-shadow:0 0 0 3px rgba(163,230,53,.10);background:#0f1312}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238d9891' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:30px}
+input[type="checkbox"]{appearance:none;width:16px;height:16px;min-width:16px;border:1.5px solid var(--line-2);border-radius:5px;background:var(--bg-2);cursor:pointer;position:relative;transition:all .15s ease;padding:0}
+input[type="checkbox"]:hover{border-color:var(--faint)}
+input[type="checkbox"]:checked{background:var(--lime);border-color:var(--lime)}
+input[type="checkbox"]:checked::after{content:"";position:absolute;left:4.5px;top:1.5px;width:4px;height:8px;border:solid #0c1103;border-width:0 2px 2px 0;transform:rotate(45deg)}
+input[type="date"],input[type="datetime-local"]{color-scheme:dark}
 
-.alert{padding:11px 13px;border-radius:9px;background:#fff1f1;border:1px solid #efc2c2;color:var(--red);margin:10px 0}.follow-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.follow{border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:7px}.follow.missed{border-left:4px solid var(--red)}.follow b{font-size:13px}.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+/* ---------- app shell ---------- */
+#app{display:flex;min-height:100vh}
+.sidebar{width:238px;flex:0 0 238px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;background:rgba(13,16,15,.85);backdrop-filter:blur(14px);border-right:1px solid var(--line);z-index:30}
+.brand{font-family:var(--display);font-size:17px;font-weight:700;padding:20px 20px 16px;display:flex;align-items:center;gap:10px;letter-spacing:-.02em}
+.brand .logo-mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(140deg,var(--lime),#5db62e);display:grid;place-items:center;box-shadow:0 4px 14px rgba(163,230,53,.25)}
+.brand .logo-mark svg{width:16px;height:16px}
+.brand span{color:var(--lime)}
+.nav{display:flex;flex-direction:column;gap:2px;padding:6px 12px;overflow-y:auto;flex:1}
+.nav button{display:flex;align-items:center;gap:11px;border:0;background:transparent;color:var(--muted);font-weight:600;font-size:13px;padding:9px 12px;border-radius:9px;text-align:left;position:relative;transition:color .18s ease,background .18s ease;white-space:nowrap}
+.nav button svg{width:16px;height:16px;flex:0 0 16px;opacity:.75;transition:opacity .18s ease}
+.nav button:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.nav button:hover svg{opacity:1}
+.nav button.active{color:var(--lime);background:var(--lime-dim)}
+.nav button.active::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--lime)}
+.nav button.active svg{opacity:1}
+#chatNavCount{margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:20px;background:var(--lime);color:#0c1103;font-size:10px;font-weight:800;display:grid;place-items:center}
+.sidebar-footer{padding:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.user-chip{display:flex;align-items:center;gap:10px;min-width:0}
+.avatar{width:34px;height:34px;border-radius:10px;background:linear-gradient(140deg,var(--lime-dim),transparent);border:1px solid var(--lime-line);color:var(--lime);display:grid;place-items:center;font-weight:800;font-size:13px;flex:0 0 34px}
+.user-chip>div{min-width:0;flex:1}
+.user-chip b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{height:58px;position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:0 22px;background:rgba(10,13,12,.8);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.topbar .page-crumb{font-size:12px;color:var(--faint);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.topbar .page-crumb b{color:var(--muted)}
+.hamburger{display:none;width:36px;height:36px;border:1px solid var(--line-2);border-radius:9px;place-items:center;background:var(--surface-2)}
 
-.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:1000px;font-size:12px}.table th,.table td{padding:9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.table th{background:#f1f6f3;color:var(--muted);font-size:11px}.table td select{padding:6px;min-width:105px}.badge{display:inline-block;border-radius:20px;padding:4px 8px;font-size:10px;font-weight:800;white-space:nowrap}.hot{background:#ffe3e3;color:#b52d2d}.warm{background:#fff0d2;color:#966106}.cold{background:#e9edf0;color:#5d6770}.snew{background:#e7f5ec;color:#267041}.scontact{background:#e7f0fc;color:#2862a5}.sfollow{background:#fff0d2;color:#966106}.sneg{background:#eee7fb;color:#6846a0}.sclosed{background:#e7efe9;color:#397056}.empty{text-align:center;padding:25px;color:var(--muted)}
+/* notifications */
+.notification-wrap{position:relative;margin-left:auto}
+.notification-bell{position:relative;width:37px;height:37px;border-radius:10px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--muted);display:grid;place-items:center;transition:all .18s ease}
+.notification-bell:hover{color:var(--lime);border-color:var(--lime-line);transform:translateY(-1px)}
+.notification-bell svg{width:17px;height:17px}
+.notification-count{position:absolute;right:-5px;top:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:20px;background:var(--red);color:#fff;font-size:9.5px;font-weight:800;display:grid;place-items:center;border:2px solid var(--bg)}
+.notification-panel{position:fixed;right:18px;top:64px;width:min(390px,calc(100vw - 24px));max-height:480px;overflow:auto;background:var(--surface-2);border:1px solid var(--line-2);border-radius:14px;box-shadow:var(--shadow-lg);padding:8px;z-index:60;animation:drop .22s var(--ease) both;transform-origin:top right}
+@keyframes drop{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
+.notification-head{display:flex;align-items:center;padding:8px 10px 10px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.notification-item{padding:10px;border-radius:10px;margin:2px 0;cursor:pointer;position:relative;transition:background .15s ease;border:1px solid transparent}
+.notification-item:hover{background:rgba(255,255,255,.04)}
+.notification-item.unread{background:var(--lime-dim);border-color:rgba(163,230,53,.14);border-left:3px solid var(--lime);padding-left:8px}
+.notification-title{font-weight:700;font-size:12.5px;padding-right:28px}
+.notification-message{font-size:12px;line-height:1.5;color:var(--muted);margin-top:3px}
+.notification-time{font-size:10px;color:var(--faint);margin-top:5px}
+.notification-delete{position:absolute;right:7px;top:8px;border:0;background:transparent;color:var(--faint);font-size:10px;font-weight:700;padding:4px 6px;border-radius:6px}
+.notification-delete:hover{color:#ff8589;background:var(--red-dim)}
 
-.filters{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.filter-check{border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--muted);font-size:12px;display:flex;gap:6px;align-items:center}.filter-check input{width:auto}.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.info{border:1px solid var(--line);border-radius:9px;padding:9px}.info b{display:block;color:var(--muted);font-size:10px;margin-bottom:4px}.ai-box{border:1px solid #cfe4d6;background:#f3faf5;border-radius:10px;padding:12px;margin:12px 0}.ai-title{font-weight:800;color:var(--green2);margin-bottom:5px}.ai-box p{margin:5px 0;font-size:12px;line-height:1.5}.call-box{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:12px}.outcomes{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}.outcome{padding:7px 10px;border:1px solid var(--line);border-radius:20px;background:#fff;font-size:11px;font-weight:700;color:var(--muted)}.outcome.active{border-color:var(--green);background:#eaf5ee;color:var(--green2)}.timeline{margin-top:10px}.call-item{position:relative;border-left:2px solid #cfe1d5;padding:0 0 13px 13px;margin-left:5px}.call-item:last-child{padding-bottom:0}.call-item b{font-size:12px}.call-item p{margin:4px 0;font-size:12px;line-height:1.45}.call-meta{font-size:10px;color:var(--muted)}
+/* ---------- pages ---------- */
+.page{display:none;flex-direction:column;gap:16px}
+.page.active{display:flex;animation:pageIn .4s var(--ease) both}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.hero{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.hero p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.push{margin-left:auto}
+.result-note{color:var(--muted);font-size:12px;margin-top:12px;min-height:18px;display:flex;align-items:center;gap:8px}
 
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:grid;place-items:center;padding:12px}.modal-box{width:min(980px,100%);max-height:94vh;overflow:auto;background:#fff;border-radius:12px;padding:17px}.modal-head{display:flex;align-items:flex-start;gap:10px}.modal-close{margin-left:auto;border:0;background:#f1f3f2;border-radius:50%;width:30px;height:30px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}.toast{position:fixed;right:15px;bottom:15px;background:#27312b;color:#fff;padding:10px 13px;border-radius:8px;z-index:100;font-size:12px;max-width:390px}.toast.err{background:var(--red)}.spinner{display:inline-block;width:12px;height:12px;border:2px solid #d9eade;border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+/* ---------- dashboard ---------- */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat b{display:block;font-family:var(--display);font-size:30px;font-weight:700;letter-spacing:-.03em;line-height:1.15}
+.stat span{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+.stat{position:relative;overflow:hidden}
+.stat::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--lime)}
+.metric-calls::after{background:var(--green)}
+.metric-follow::after{background:var(--amber)}
+.metric-success::after{background:var(--green)}
+.stats .stat:nth-child(2){animation-delay:.05s}.stats .stat:nth-child(3){animation-delay:.1s}.stats .stat:nth-child(4){animation-delay:.15s}
+.follow-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.follow{border:1px solid var(--line);border-radius:11px;padding:12px;margin-bottom:8px;background:var(--surface-3);transition:border-color .18s ease,transform .18s ease}
+.follow:hover{border-color:var(--line-2);transform:translateY(-1px)}
+.follow.missed{border-left:3px solid var(--red)}
+.follow b{font-size:13px}
+.alert{padding:11px 14px;border-radius:10px;background:var(--red-dim);border:1px solid rgba(229,72,77,.25);color:#ff9a9d;font-size:12.5px;margin-top:12px}
+.rank-ring{--ring:var(--lime);width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--ring-color) calc(var(--score) * 1%),#20272420 0);background:conic-gradient(var(--ring-color) calc(var(--score) * 1%),#242c28 0);position:relative;font-weight:800}
+.rank-ring::after{content:"";position:absolute;inset:5px;background:var(--surface-2);border-radius:50%;z-index:0}
+.rank-ring span{position:relative;z-index:1;font-size:10px;font-family:var(--display)}
+.perf-name{display:flex;align-items:center;gap:9px}
+.success-num{color:var(--green);font-weight:700}
+.failure-num{color:var(--red);font-weight:700}
+.perf-bar{height:6px;width:90px;background:#242c28;border-radius:20px;overflow:hidden;margin-top:5px}
+.perf-bar i{display:block;height:100%;width:var(--p);background:var(--ring-color);border-radius:20px;transition:width .8s var(--ease)}
+.perf-select{width:150px}
+.performance-table{min-width:920px}
 
-.auth{min-height:100vh;display:grid;place-items:center;padding:18px}.auth-card{width:min(400px,100%);background:#fff;border:1px solid var(--line);border-radius:13px;padding:26px;box-shadow:var(--shadow)}.auth-card button.primary{width:100%;margin-top:12px}.auth-error{color:var(--red);font-size:12px;margin-top:10px}
+/* ---------- search ---------- */
+.search-box{display:grid;grid-template-columns:1.1fr 1fr 1.4fr .6fr auto;gap:10px;align-items:end}
+.field label{display:block;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
+.checks{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px}
+.checks label{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:7px;cursor:pointer;transition:color .15s ease}
+.checks label:hover{color:var(--text)}
+.checks input{width:auto}
+.filters{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.filter-check{border:1px solid var(--line-2);border-radius:var(--radius-sm);padding:8px 10px;color:var(--muted);font-size:12px;display:flex;gap:7px;align-items:center;cursor:pointer;transition:all .15s ease}
+.filter-check:hover{border-color:var(--faint);color:var(--text)}
+.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
 
-@media(max-width:1050px){.search-box{grid-template-columns:1fr 1fr 1fr}.filters{grid-template-columns:repeat(3,1fr)}.stats{grid-template-columns:repeat(2,1fr)}.top{height:auto;min-height:60px;flex-wrap:wrap;padding:9px 12px}.nav{width:100%;order:3}.userbar{margin-left:0}}
+/* ---------- tables ---------- */
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.table{width:100%;border-collapse:collapse;min-width:1000px;font-size:12.5px}
+.table th,.table td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.table th{background:#151a18;color:var(--faint);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;position:sticky;top:0;z-index:1}
+.table tbody tr{transition:background .15s ease}
+.table tbody tr:hover{background:rgba(255,255,255,.025)}
+.table tbody tr:last-child td{border-bottom:0}
+.table td select{padding:6px 26px 6px 8px;min-width:110px;font-size:12px}
+.empty{text-align:center;padding:30px;color:var(--faint);font-size:13px}
 
-@media(max-width:650px){.wrap{padding:10px}.search-box,.filters,.grid2,.info-grid,.follow-grid,.hero{align-items:flex-start;flex-direction:column}.stats{grid-template-columns:1fr 1fr}.userbar{display:none}}
+/* ---------- badges / chips ---------- */
+.badge{display:inline-block;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:700;letter-spacing:.03em;white-space:nowrap;border:1px solid transparent}
+.hot{background:var(--red-dim);color:#ff9a9d;border-color:rgba(229,72,77,.25)}
+.warm{background:var(--amber-dim);color:#ffc46b;border-color:rgba(245,165,36,.25)}
+.cold{background:rgba(255,255,255,.05);color:var(--muted);border-color:var(--line-2)}
+.snew{background:var(--lime-dim);color:var(--lime);border-color:var(--lime-line)}
+.scontact{background:rgba(96,165,250,.12);color:#8db8f5;border-color:rgba(96,165,250,.22)}
+.sfollow{background:var(--amber-dim);color:#ffc46b;border-color:rgba(245,165,36,.25)}
+.sneg{background:rgba(232,121,249,.10);color:#e59bf3;border-color:rgba(232,121,249,.2)}
+.sclosed{background:var(--green-dim);color:var(--green);border-color:rgba(62,207,142,.25)}
 
-/* Lightweight UI motion: keeps the app professional without slowing the workflow. */
+/* ---------- lead detail / modal ---------- */
+.modal{position:fixed;inset:0;background:rgba(5,8,7,.7);backdrop-filter:blur(6px);z-index:50;display:grid;place-items:center;padding:16px;animation:fadeIn .2s ease both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal-box{width:min(980px,100%);max-height:94vh;overflow:auto;background:linear-gradient(180deg,var(--surface-2),var(--surface));border:1px solid var(--line-2);border-radius:18px;padding:22px;box-shadow:var(--shadow-lg);animation:modalIn .3s var(--ease) both}
+@keyframes modalIn{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+.modal-head{display:flex;align-items:flex-start;gap:10px}
+.modal-close{margin-left:auto;border:1px solid var(--line-2);background:var(--surface-3);color:var(--muted);border-radius:9px;width:30px;height:30px;font-size:16px;transition:all .15s ease}
+.modal-close:hover{color:var(--text);border-color:var(--faint)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.info{border:1px solid var(--line);border-radius:11px;padding:11px;background:var(--surface-3)}
+.info b{display:block;color:var(--faint);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
+.info p{margin:0;font-size:13px;line-height:1.5}
+.ai-box{border:1px solid var(--lime-line);background:linear-gradient(180deg,rgba(163,230,53,.06),rgba(163,230,53,.02));border-radius:12px;padding:14px;margin:14px 0}
+.ai-title{font-weight:700;color:var(--lime);margin-bottom:6px;display:flex;align-items:center;gap:7px}
+.ai-box p{margin:5px 0;font-size:12.5px;line-height:1.6;color:var(--muted)}
+.ai-box p b{color:var(--text)}
+.call-box{border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px;background:var(--surface-3)}
+.outcomes{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px}
+.outcome{padding:7px 12px;border:1px solid var(--line-2);border-radius:20px;background:var(--surface-2);font-size:11.5px;font-weight:600;color:var(--muted);transition:all .15s ease}
+.outcome:hover{border-color:var(--faint);color:var(--text)}
+.outcome.active{border-color:var(--lime);background:var(--lime-dim);color:var(--lime)}
+.timeline{margin-top:12px}
+.call-item{position:relative;border-left:2px solid var(--line-2);padding:0 0 14px 14px;margin-left:6px}
+.call-item:last-child{padding-bottom:0}
+.call-item b{font-size:12.5px}
+.call-item p{margin:4px 0;font-size:12.5px;line-height:1.5;color:var(--muted)}
+.call-meta{font-size:10.5px;color:var(--faint)}
 
-.card,.stat{animation:fadeUp .35s ease both}.stats .stat:nth-child(2){animation-delay:.04s}.stats .stat:nth-child(3){animation-delay:.08s}.stats .stat:nth-child(4){animation-delay:.12s}
+/* ---------- groups ---------- */
+#groupCards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+#groupCards.stat,#groupCards .stat{animation:rise .5s var(--ease) both}
 
-@keyframes fadeUp{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+/* ---------- AI research ---------- */
+.ai-research-head{align-items:center;gap:16px}
+.ai-confidence{padding:7px 12px;border:1px solid var(--line-2);border-radius:999px;font-size:12px;font-weight:700;text-transform:capitalize;background:var(--surface-3)}
+.ai-confidence.high{color:var(--green);border-color:rgba(62,207,142,.3)}
+.ai-confidence.medium{color:var(--amber);border-color:rgba(245,165,36,.3)}
+.ai-confidence.low{color:var(--red);border-color:rgba(229,72,77,.3)}
+.ai-research-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.ai-research-grid .info{min-width:0}
+.ai-fact,.ai-opportunity-card,.ai-offer-card{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px;margin-top:8px}
+.ai-fact>div,.ai-opportunity-card>b,.ai-offer-card>b{display:block;line-height:1.5;font-size:12.5px}
+.ai-fact>span,.ai-opportunity-card>span,.ai-offer-card>span{display:block;margin-top:7px;color:var(--faint);font-size:11.5px;line-height:1.5}
+.ai-opportunity-card{border-left:3px solid var(--amber)}
+.ai-offer-card{border-left:3px solid var(--lime)}
+.ai-empty{display:block;padding:13px;color:var(--faint);background:rgba(255,255,255,.02);border:1px dashed var(--line-2);border-radius:12px;margin-top:8px;font-size:12px}
+.ai-section-note{margin-top:5px;font-size:11px;color:var(--faint)}
 
-.hero h1{animation:heroIn .5s ease both}@keyframes heroIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+/* ---------- toast / spinner ---------- */
+.toast{position:fixed;right:18px;bottom:18px;background:#1e2522;border:1px solid var(--line-2);color:var(--text);padding:11px 15px;border-radius:11px;z-index:100;font-size:12.5px;font-weight:600;max-width:390px;box-shadow:var(--shadow-lg);animation:toastIn .3s var(--ease) both}
+.toast.err{background:#2a1516;border-color:rgba(229,72,77,.35);color:#ff9a9d}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(163,230,53,.2);border-top-color:var(--lime);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-button.primary{transition:transform .15s ease,box-shadow .15s ease}button.primary:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(22,131,74,.18)}
-
-.ai-box{animation:softPulse 2.8s ease-in-out infinite}@keyframes softPulse{0%,100%{box-shadow:0 0 0 rgba(22,131,74,0)}50%{box-shadow:0 0 18px rgba(22,131,74,.08)}}
-
-/* Polished motion + animated background */
-
-body{overflow-x:hidden;position:relative;background:linear-gradient(135deg,#f7faf8 0%,#eef8f2 45%,#f7f9ff 100%)}
-
-body::before,body::after{content:"";position:fixed;z-index:-1;width:360px;height:360px;border-radius:50%;filter:blur(45px);opacity:.22;pointer-events:none}
-
-body::before{left:-120px;top:12vh;background:#4fd18a;animation:floatOrb 11s ease-in-out infinite}
-
-body::after{right:-130px;bottom:8vh;background:#6aa7ff;animation:floatOrb2 14s ease-in-out infinite}
-
-@keyframes floatOrb{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(70px,45px) scale(1.12)}}
-
-@keyframes floatOrb2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-65px,-40px) scale(1.08)}}
-
-.auth{position:relative;overflow:hidden;background:radial-gradient(circle at 15% 20%,rgba(22,131,74,.14),transparent 32%),radial-gradient(circle at 85% 80%,rgba(58,105,180,.12),transparent 34%)}
-
-.auth-card{animation:authIn .65s cubic-bezier(.2,.8,.2,1) both;backdrop-filter:blur(10px);background:rgba(255,255,255,.92);box-shadow:0 20px 60px rgba(20,60,40,.12)}
-
-.auth-card h1{animation:authTitle .7s .1s ease both}
-
+/* ---------- auth ---------- */
+.auth{min-height:100vh;display:grid;grid-template-columns:1.15fr 1fr;padding:0}
+.auth-visual{position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;padding:48px;border-right:1px solid var(--line);background:
+  radial-gradient(700px 400px at 20% 20%,rgba(163,230,53,.10),transparent 55%),
+  radial-gradient(600px 500px at 80% 90%,rgba(62,207,142,.08),transparent 55%),var(--bg-2)}
+.auth-visual::after{content:"";position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='.05'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");opacity:.6;pointer-events:none}
+.auth-visual .brand{padding:0;font-size:19px}
+.auth-hero{position:relative;z-index:1;max-width:440px}
+.auth-hero h2{font-size:clamp(26px,3.4vw,38px);line-height:1.15;margin:0 0 14px}
+.auth-hero h2 em{font-style:normal;color:var(--lime)}
+.auth-hero p{color:var(--muted);font-size:14px;line-height:1.7;margin:0}
+.auth-feats{position:relative;z-index:1;display:flex;flex-direction:column;gap:12px}
+.auth-feats div{display:flex;align-items:center;gap:11px;color:var(--muted);font-size:13px}
+.auth-feats svg{width:16px;height:16px;color:var(--lime);flex:0 0 16px}
+.auth-panel{display:grid;place-items:center;padding:24px;position:relative;overflow:hidden}
+.auth-panel::before{content:"";position:absolute;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(163,230,53,.08),transparent 65%);top:-140px;right:-140px;animation:drift 12s ease-in-out infinite}
+@keyframes drift{0%,100%{transform:translate(0,0)}50%{transform:translate(-30px,30px)}}
+.auth-card{width:min(400px,100%);background:linear-gradient(180deg,var(--surface-2),var(--surface));border:1px solid var(--line-2);border-radius:18px;padding:30px;box-shadow:var(--shadow-lg);position:relative;z-index:1;animation:authIn .6s var(--ease) both}
+@keyframes authIn{from{opacity:0;transform:translateY(20px) scale(.98)}to{opacity:1;transform:none}}
+.auth-card h1{font-size:24px;margin-bottom:6px}
+.auth-card .muted{margin:0 0 20px}
+.auth-card button.primary{width:100%;margin-top:14px;padding:11px}
 .auth-secondary{margin-top:9px;width:100%}
+.auth-help{display:flex;justify-content:space-between;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.auth-link{background:none;border:0;color:var(--muted);font-size:12.5px;font-weight:600;padding:4px 2px;transition:color .15s ease;cursor:pointer}
+.auth-link:hover{color:var(--lime)}
+.auth-error{color:#ff9a9d;font-size:12.5px;margin-top:12px;padding:10px 12px;background:var(--red-dim);border:1px solid rgba(229,72,77,.25);border-radius:9px;line-height:1.5}
 
-@keyframes authIn{from{opacity:0;transform:translateY(24px) scale(.97)}to{opacity:1;transform:none}}
-
-@keyframes authTitle{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
-
-.top{backdrop-filter:blur(12px);background:rgba(255,255,255,.9)}
-
-.notification-wrap{position:relative;margin-left:4px}
-
-.notification-bell{position:relative;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--green2);font-size:18px;display:grid;place-items:center;transition:transform .18s ease,box-shadow .18s ease}
-
-.notification-bell:hover{transform:translateY(-1px);box-shadow:0 7px 18px rgba(20,70,40,.12)}
-
-.notification-count{position:absolute;right:-5px;top:-5px;min-width:18px;height:18px;padding:0 4px;border-radius:20px;background:var(--red);color:#fff;font-size:10px;font-weight:800;display:grid;place-items:center;border:2px solid #fff}
-
-.notification-panel{position:absolute;right:0;top:46px;width:min(390px,calc(100vw - 24px));max-height:480px;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 45px rgba(20,50,35,.16);padding:10px;z-index:60;animation:notifyIn .2s ease both}
-
-@keyframes notifyIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
-
-.notification-head{display:flex;align-items:center;padding:5px 6px 9px;border-bottom:1px solid var(--line);margin-bottom:5px}
-
-.notification-item{padding:10px 8px;border-radius:10px;margin:3px 0;transition:background .15s ease;position:relative}
-
-.notification-item:hover{background:#f5f9f6}
-
-.notification-item.unread{background:#eef9f2;border-left:3px solid var(--green);padding-left:7px}
-
-.notification-title{font-weight:800;font-size:12px;padding-right:28px}.notification-message{font-size:12px;line-height:1.45;margin-top:3px}.notification-time{font-size:10px;color:var(--muted);margin-top:5px}
-
-.notification-delete{position:absolute;right:7px;top:8px;border:0;background:transparent;color:var(--red);font-size:11px;font-weight:800;padding:4px 5px;border-radius:6px}.notification-delete:hover{background:#fff0f0}
-
-@media(max-width:650px){.notification-panel{position:fixed;right:10px;top:62px}.userbar{display:flex}.userbar>div:nth-child(2){display:none}}
-
-/* Next-level internal team chat */
-.chat-shell{display:grid;grid-template-columns:330px minmax(0,1fr);gap:12px;min-height:700px}
-.chat-sidebar{display:flex;flex-direction:column;min-height:700px;padding:12px}
-.chat-sidebar-top{display:flex;align-items:center;gap:8px;padding:2px 2px 10px}
-.chat-sidebar-top h2{margin:0}
-.chat-count{margin-left:auto}
-.chat-search{position:relative;margin-bottom:9px}
-.chat-search input{padding-left:34px}
-.chat-search span{position:absolute;left:11px;top:9px;color:var(--muted)}
-.chat-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:9px}
-.chat-tab{border:1px solid var(--line);background:#fff;color:var(--muted);padding:8px;border-radius:8px;font-weight:700;font-size:11px}
-.chat-tab.active{background:#eaf5ee;color:var(--green2);border-color:#cfe4d6}
-.chat-list{overflow:auto;flex:1;border:1px solid var(--line);border-radius:10px;background:#fff}
-.chat-row{display:flex;align-items:center;gap:10px;padding:11px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s ease}
-.chat-row:last-child{border-bottom:0}
-.chat-row:hover{background:#f5f9f6}
-.chat-row.active{background:#eaf5ee}
-.chat-row.unread .chat-row-name{font-weight:900}
-.chat-avatar-wrap{position:relative;flex:0 0 40px}
-.chat-avatar{width:40px;height:40px;border-radius:50%;background:#eaf5ee;color:var(--green2);display:grid;place-items:center;font-weight:900}
-.chat-dot{position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;background:#7d8a82;border:2px solid #fff}
-.chat-dot.active-account{background:var(--green)}
+/* ---------- chat ---------- */
+.chat-shell{--chat-primary:var(--lime);--chat-primary-dark:var(--lime);--chat-soft:var(--lime-dim);--chat-border:var(--line);--chat-text:var(--text);--chat-muted:var(--muted);display:grid;grid-template-columns:340px minmax(0,1fr);gap:0;min-height:calc(100vh - 190px);height:calc(100vh - 190px);max-height:840px;overflow:hidden;background:var(--surface);border:1px solid var(--line-2);border-radius:18px;box-shadow:var(--shadow)}
+.chat-sidebar{min-height:0;height:100%;padding:0;background:var(--bg-2);border-right:1px solid var(--chat-border);display:flex;flex-direction:column}
+.chat-sidebar-top{min-height:70px;padding:0 18px;border-bottom:1px solid var(--chat-border);background:var(--surface);display:flex;align-items:center}
+.chat-sidebar-top h2{font-size:19px;letter-spacing:-.02em}
+.chat-count{margin-left:auto;min-width:24px;height:24px;padding:0 8px;display:grid;place-items:center;border-radius:20px;background:var(--surface-3);color:var(--muted);font-size:11px;font-weight:700;border:1px solid var(--line)}
+.chat-search{margin:14px 16px 12px}
+.chat-search input{height:40px;border-radius:11px;padding-left:36px;font-size:12.5px}
+.chat-search span{position:absolute;left:12px;top:11px;color:var(--faint);font-size:15px}
+.chat-search{position:relative}
+.chat-tabs{margin:0 16px 12px;padding:3px;gap:3px;border-radius:11px;background:var(--surface-3);border:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr}
+.chat-tab{border:0;background:transparent;color:var(--faint);padding:8px;border-radius:8px;font-size:11.5px;font-weight:700;transition:all .18s ease}
+.chat-tab.active{background:var(--surface-2);color:var(--lime);box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.chat-list{overflow:auto;flex:1;scrollbar-width:thin}
+.chat-row{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--line);position:relative;transition:background .15s ease}
+.chat-row:hover{background:rgba(255,255,255,.03)}
+.chat-row.active{background:var(--lime-dim)}
+.chat-row.active::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;background:var(--lime);border-radius:0 3px 3px 0}
+.chat-row.unread .chat-row-name{font-weight:800;color:var(--text)}
+.chat-avatar-wrap{position:relative;flex:0 0 42px}
+.chat-avatar{width:42px;height:42px;border-radius:12px;background:linear-gradient(140deg,var(--surface-3),var(--surface-2));border:1px solid var(--line-2);color:var(--lime);display:grid;place-items:center;font-weight:800;font-size:12.5px}
+.chat-dot{position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;background:#3a4440;border:2px solid var(--bg-2)}
+.chat-dot.active-account{background:var(--green);box-shadow:0 0 0 3px rgba(62,207,142,.15)}
 .chat-row-main{min-width:0;flex:1}
-.chat-row-line{display:flex;align-items:center;gap:6px}
-.chat-row-name{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chat-role{font-size:9px;padding:2px 5px;border-radius:10px;background:#f0f3f1;color:var(--muted);white-space:nowrap}
-.chat-row-preview{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
-.chat-row-time{font-size:9px;color:var(--muted);white-space:nowrap}
-.chat-unread{min-width:19px;height:19px;padding:0 5px;border-radius:20px;background:var(--green);color:#fff;font-size:10px;font-weight:900;display:grid;place-items:center}
-.chat-main{display:flex;flex-direction:column;min-width:0;min-height:700px;padding:0;overflow:hidden}
-.chat-head{display:flex;align-items:center;gap:11px;padding:13px 15px;border-bottom:1px solid var(--line);background:#fff}
+.chat-row-line{display:flex;align-items:center;gap:7px}
+.chat-row-name{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.chat-role{font-size:9px;padding:2px 6px;border-radius:10px;background:var(--surface-3);border:1px solid var(--line);color:var(--faint);white-space:nowrap}
+.chat-row-preview{font-size:11.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px}
+.chat-row-time{font-size:9.5px;color:var(--faint);white-space:nowrap}
+.chat-unread{min-width:19px;height:19px;padding:0 5px;border-radius:20px;background:var(--lime);color:#0c1103;font-size:10px;font-weight:800;display:grid;place-items:center}
+.chat-main{display:flex;flex-direction:column;min-width:0;min-height:0;height:100%;padding:0;overflow:hidden;background:var(--bg-2)}
+.chat-head{min-height:70px;padding:0 18px;gap:12px;border-bottom:1px solid var(--chat-border);background:var(--surface);display:flex;align-items:center;z-index:2}
+.chat-head .chat-avatar{width:44px;height:44px}
 .chat-head-info{min-width:0;flex:1}
-.chat-head-name{display:flex;align-items:center;gap:7px}
-.chat-head-name h2{margin:0}
-.chat-head-status{font-size:11px;color:var(--muted);margin-top:3px}
-.chat-messages{flex:1;overflow:auto;padding:18px 18px 10px;display:flex;flex-direction:column;gap:8px;background:linear-gradient(180deg,#f8fbf9 0%,#f3f8f5 100%);border:0;border-radius:0;margin:0}
-.chat-day{align-self:center;font-size:9px;color:var(--muted);background:#fff;border:1px solid var(--line);padding:4px 8px;border-radius:20px;margin:5px 0}
-.chat-bubble-row{display:flex;align-items:flex-end;gap:6px}
+.chat-head-name h2{font-size:15.5px}
+.chat-head-status{font-size:11px;color:var(--faint);margin-top:3px}
+.chat-head button{width:36px;min-width:36px;height:36px;padding:0;border:1px solid var(--line-2);background:var(--surface-3);color:var(--muted);border-radius:10px;font-size:15px}
+.chat-head button:hover{background:var(--surface-2);color:var(--lime);border-color:var(--lime-line)}
+.chat-messages{flex:1;overflow:auto;padding:22px 24px 14px;display:flex;flex-direction:column;gap:6px;background-color:var(--bg-2);background-image:radial-gradient(rgba(163,230,53,.035) .7px,transparent .7px);background-size:20px 20px;contain:layout paint;overscroll-behavior:contain;scroll-behavior:smooth}
+.chat-day{align-self:center;font-size:9.5px;color:var(--faint);background:var(--surface);border:1px solid var(--line);padding:4px 10px;border-radius:20px;margin:8px 0;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.chat-bubble-row{display:flex;align-items:flex-end;gap:7px;animation:bubbleIn .3s var(--ease) both}
 .chat-bubble-row.mine{justify-content:flex-end}
-.chat-bubble{max-width:min(74%,680px);padding:9px 11px 7px;border-radius:13px 13px 13px 4px;border:1px solid var(--line);background:#fff;box-shadow:0 1px 3px rgba(15,40,25,.05)}
-.chat-bubble.mine{background:#e6f5eb;border-color:#c7e2d0;border-radius:13px 13px 4px 13px}
-.chat-sender{font-size:10px;font-weight:800;color:var(--green2);margin-bottom:3px}
-.chat-body{font-size:13px;line-height:1.48;white-space:pre-wrap;overflow-wrap:anywhere}
-.chat-meta{font-size:9px;color:var(--muted);margin-top:4px;text-align:right}
-.chat-compose{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#fff}
-.chat-compose textarea{resize:none;min-height:44px;max-height:130px;border-radius:10px}
-.chat-compose button{align-self:stretch;min-width:82px}
+@keyframes bubbleIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+.chat-bubble{max-width:min(72%,660px);padding:10px 13px 7px;border-radius:15px 15px 15px 5px;border:1px solid var(--line-2);background:var(--surface-2);box-shadow:0 2px 8px rgba(0,0,0,.2);content-visibility:auto;contain-intrinsic-size:0 72px}
+.chat-bubble.mine{background:#1c2b15;border-color:rgba(163,230,53,.22);border-radius:15px 15px 5px 15px}
+.chat-sender{font-size:10px;font-weight:800;color:var(--lime);margin-bottom:4px}
+.chat-body{font-size:13px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.chat-body.deleted{font-style:italic;opacity:.6}
+.chat-meta{font-size:9px;color:var(--faint);margin-top:5px;text-align:right}
+.chat-msg-actions{display:flex;gap:4px;justify-content:flex-end;margin-top:6px;opacity:0;transition:opacity .15s ease}
+.chat-bubble:hover .chat-msg-actions{opacity:1}
+.chat-msg-actions button{border:1px solid var(--line-2);background:var(--surface-3);color:var(--muted);border-radius:7px;padding:3px 7px;font-size:10px;cursor:pointer}
+.chat-msg-actions button:hover{background:var(--lime-dim);color:var(--lime);border-color:var(--lime-line)}
+.chat-reply-preview{border-left:3px solid var(--lime);background:rgba(255,255,255,.04);padding:6px 9px;border-radius:7px;margin-bottom:7px;font-size:10.5px;color:var(--faint)}
+.chat-reply-preview b{color:var(--lime);font-size:9.5px}
+.chat-reactions{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.chat-reaction{border:1px solid var(--line-2);background:var(--surface-3);border-radius:12px;padding:2px 7px;font-size:9.5px;color:var(--muted)}
+.chat-compose{display:flex;gap:9px;padding:12px 16px 8px;border-top:1px solid var(--chat-border);background:var(--surface)}
+.chat-compose textarea{resize:none;min-height:44px;max-height:130px;border-radius:12px}
+.chat-compose button{align-self:stretch;min-width:78px}
 .chat-compose button:disabled{opacity:.55;cursor:not-allowed}
-.chat-hint{font-size:9px;color:var(--muted);padding:0 13px 8px;background:#fff}
+.chat-hint{font-size:9.5px;color:var(--faint);padding:0 16px 10px;background:var(--surface)}
 .chat-mobile-back{display:none}
-.chat-empty{margin:auto;text-align:center;color:var(--muted);padding:30px;line-height:1.6}
-.chat-empty b{color:var(--green2)}
-.chat-admin{margin-top:12px}
-.chat-msg-actions{display:flex;gap:4px;justify-content:flex-end;margin-top:5px;flex-wrap:wrap}.chat-msg-actions button{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:6px;padding:3px 6px;font-size:9px}.chat-msg-actions button:hover{background:#eef7f1;color:var(--green2)}.chat-reply-preview{border-left:3px solid var(--green);background:rgba(255,255,255,.65);padding:5px 7px;border-radius:6px;margin-bottom:6px;font-size:10px;color:var(--muted)}.chat-reply-preview b{color:var(--green2);font-size:9px}
+.chat-empty{margin:auto;text-align:center;color:var(--faint);padding:30px;line-height:1.7}
+.chat-empty b{color:var(--lime)}
+.chat-reply-bar{display:flex;align-items:center;gap:10px;padding:9px 16px;border-top:1px solid var(--line);background:var(--bg-2);color:var(--muted);font-size:10.5px}
+.chat-reply-bar>div{min-width:0;flex:1;border-left:3px solid var(--lime);padding-left:9px}
+.chat-reply-bar b{color:var(--lime);font-size:10px}
+.chat-reply-bar #chatReplyText{margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-reply-bar button{width:28px;height:28px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface-3);color:var(--muted);font-size:16px;line-height:1}
+.chat-reply-bar button:hover{background:var(--lime-dim);color:var(--lime)}
+.chat-online{color:var(--green);font-weight:700}
+.chat-offline{color:var(--faint)}
+
+/* ==========================================================
+   Responsive
+   ========================================================== */
+@media(max-width:1100px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .filters{grid-template-columns:repeat(3,1fr)}
+  .ai-research-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:980px){
+  .sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);transition:transform .3s var(--ease);box-shadow:var(--shadow-lg)}
+  .sidebar.open{transform:none}
+  .hamburger{display:grid}
+  .search-box{grid-template-columns:1fr 1fr}
+  .auth{grid-template-columns:1fr}
+  .auth-visual{display:none}
+}
 @media(max-width:800px){
-  .chat-shell{grid-template-columns:1fr;min-height:620px}
-  .chat-sidebar{min-height:620px}
-  .chat-main{min-height:620px}
+  .chat-shell{grid-template-columns:1fr;height:calc(100vh - 150px);min-height:560px}
+  .chat-sidebar{min-height:560px}
+  .chat-main{min-height:560px}
   .chat-shell.mobile-chat-open .chat-sidebar{display:none}
   .chat-shell:not(.mobile-chat-open) .chat-main{display:none}
   .chat-mobile-back{display:inline-block}
   .chat-bubble{max-width:88%}
 }
-.chat-msg-actions{display:flex;gap:4px;justify-content:flex-end;margin-top:5px;opacity:.0;transition:opacity .15s ease}.chat-bubble:hover .chat-msg-actions{opacity:1}.chat-msg-actions button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:3px 6px;font-size:10px;cursor:pointer}.chat-body.deleted{font-style:italic;opacity:.65}
-/* =========================================================
-   Professional Chat UI v3
-   Visual-only redesign: preserves existing chat behavior/API.
-   ========================================================= */
-.chat-shell{
-  --chat-primary:#16834a;
-  --chat-primary-dark:#0d6a3a;
-  --chat-soft:#eaf6ef;
-  --chat-border:#e2e9e5;
-  --chat-text:#18231d;
-  --chat-muted:#7a857f;
-  display:grid;
-  grid-template-columns:360px minmax(0,1fr);
-  gap:0;
-  min-height:calc(100vh - 175px);
-  height:calc(100vh - 175px);
-  max-height:820px;
-  overflow:hidden;
-  background:#fff;
-  border:1px solid #dfe8e3;
-  border-radius:18px;
-  box-shadow:0 12px 35px rgba(24,52,38,.09);
+@media(max-width:650px){
+  .wrap{padding:14px 12px 50px}
+  .search-box,.filters,.grid2,.info-grid,.follow-grid{grid-template-columns:1fr}
+  .hero{flex-direction:column;align-items:flex-start}
+  .stats{grid-template-columns:1fr 1fr}
+  .ai-research-grid{grid-template-columns:1fr}
+  .topbar{padding:0 14px}
 }
-.chat-sidebar{
-  min-height:0;
-  height:100%;
-  padding:0;
-  background:#fbfcfb;
-  border-right:1px solid var(--chat-border);
-}
-.chat-sidebar-top{
-  min-height:76px;
-  padding:0 20px;
-  border-bottom:1px solid var(--chat-border);
-  background:#fff;
-}
-.chat-sidebar-top h2{font-size:21px;letter-spacing:-.35px;color:var(--chat-text)}
-.chat-count{
-  min-width:24px;height:24px;padding:0 7px;display:grid;place-items:center;
-  border-radius:20px;background:#f0f5f2;color:var(--chat-primary-dark);font-size:11px;font-weight:800;
-}
-.chat-search{margin:14px 16px 12px}
-.chat-search input{
-  height:42px;border:1px solid #dce5df;background:#f5f8f6;border-radius:12px;
-  padding-left:38px;font-size:12px;transition:.18s ease;
-}
-.chat-search input:focus{background:#fff;border-color:#9ccfb1;box-shadow:0 0 0 3px rgba(22,131,74,.08)}
-.chat-search span{left:13px;top:11px;font-size:15px}
-.chat-tabs{
-  margin:0 16px 12px;padding:3px;gap:3px;border-radius:11px;background:#eef3f0;
-}
-.chat-tab{
-  border:0;background:transparent;color:#78837d;padding:9px;border-radius:8px;font-size:11px;font-weight:800;
-}
-.chat-tab.active{background:#fff;color:var(--chat-primary-dark);border:0;box-shadow:0 2px 7px rgba(22,60,40,.08)}
-.chat-list{
-  border:0;border-radius:0;background:transparent;
-  overflow:auto;
-  scrollbar-width:thin;
-  scrollbar-color:#cbd8d0 transparent;
-}
-.chat-row{
-  position:relative;gap:12px;padding:13px 17px;border-bottom:1px solid #edf1ee;background:transparent;
-}
-.chat-row:hover{background:#f4f8f5}
-.chat-row.active{background:#eaf6ef}
-.chat-row.active:before{
-  content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:0 4px 4px 0;background:var(--chat-primary);
-}
-.chat-avatar-wrap{flex-basis:44px}
-.chat-avatar{
-  width:44px;height:44px;background:linear-gradient(145deg,#edf8f1,#dcefe4);
-  color:var(--chat-primary-dark);font-size:13px;border:1px solid #d9ebe0;
-}
-.chat-dot{width:10px;height:10px;border:2px solid #fbfcfb}
-.chat-dot.active-account{background:#20a15d;box-shadow:0 0 0 2px rgba(32,161,93,.12)}
-.chat-row-name{font-size:12.5px;color:#1c2821}
-.chat-role{background:#edf3ef;color:#68756e;font-size:9px;padding:3px 6px}
-.chat-row-preview{font-size:11px;margin-top:4px;color:#7b867f}
-.chat-row-time{font-size:9px;color:#9aa49e}
-.chat-unread{background:var(--chat-primary);box-shadow:0 2px 5px rgba(22,131,74,.18)}
-.chat-main{
-  min-height:0;height:100%;background:#f7faf8;
-}
-.chat-head{
-  min-height:76px;padding:0 20px;gap:12px;border-bottom:1px solid var(--chat-border);background:#fff;
-  box-shadow:0 1px 3px rgba(20,45,31,.03);z-index:2;
-}
-.chat-head .chat-avatar{width:46px;height:46px}
-.chat-head-name h2{font-size:16px;color:#17221c;letter-spacing:-.2px}
-.chat-head-status{font-size:10.5px;color:#7a857f}
-.chat-head-status:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#22a35e;margin-right:5px;vertical-align:1px}
-.chat-head button{
-  width:38px;min-width:38px;height:38px;padding:0;border:1px solid #dbe5df;background:#fff;
-  color:#617069;border-radius:10px;box-shadow:none;
-}
-.chat-head button:hover{background:#f0f7f3;color:var(--chat-primary-dark);border-color:#bcd8c7}
-.chat-messages{
-  padding:24px 28px 18px;gap:10px;
-  background-color:#f7faf8;
-  background-image:radial-gradient(rgba(22,131,74,.045) .7px,transparent .7px);
-  background-size:18px 18px;
-}
-.chat-day{
-  font-size:9.5px;padding:5px 10px;background:rgba(255,255,255,.92);border:1px solid #e1e9e4;
-  box-shadow:0 2px 6px rgba(30,50,39,.04);color:#89938e;
-}
-.chat-bubble-row{gap:8px}
-.chat-bubble{
-  max-width:min(68%,650px);padding:10px 12px 8px;border:1px solid #e2e9e5;border-radius:15px 15px 15px 5px;
-  background:#fff;box-shadow:0 2px 8px rgba(22,45,32,.045);
-}
-.chat-bubble.mine{
-  background:#dff3e7;border-color:#c9e5d3;border-radius:15px 15px 5px 15px;
-  box-shadow:0 2px 8px rgba(22,131,74,.07);
-}
-.chat-sender{font-size:10px;color:var(--chat-primary-dark);margin-bottom:4px}
-.chat-body{font-size:12.5px;line-height:1.55;color:#25312a}
-.chat-meta{font-size:8.5px;color:#839089;margin-top:5px}
-.chat-msg-actions{opacity:0;transition:.15s ease}
-.chat-bubble:hover .chat-msg-actions{opacity:1}
-.chat-msg-actions button{
-  border:1px solid #dce5df;background:#fff;color:#6d7972;border-radius:7px;padding:4px 7px;
-  box-shadow:0 1px 3px rgba(0,0,0,.04);
-}
-.chat-msg-actions button:hover{background:#edf7f1;color:var(--chat-primary-dark);border-color:#bfdcca}
-.chat-reply-preview{border-left:3px solid var(--chat-primary);background:#f2f7f4;border-radius:7px;padding:6px 8px}
-.chat-compose{
-  align-items:flex-end;gap:9px;padding:12px 16px 14px;border-top:1px solid var(--chat-border);
-  background:#fff;box-shadow:0 -4px 14px rgba(25,50,36,.035);
-}
-.chat-compose textarea{
-  min-height:44px;max-height:120px;border:1px solid #dce5df;background:#f7f9f8;border-radius:13px;
-  padding:12px 13px;font-size:12px;line-height:1.4;
-}
-.chat-compose textarea:focus{background:#fff;border-color:#9ccfb1;box-shadow:0 0 0 3px rgba(22,131,74,.07)}
-.chat-compose button{
-  min-width:48px;width:48px;height:44px;border:0;border-radius:12px;background:var(--chat-primary);
-  box-shadow:0 5px 12px rgba(22,131,74,.2);font-size:0;position:relative;
-}
-.chat-compose button:after{content:"➤";font-size:17px;color:#fff;position:absolute;left:15px;top:11px}
-.chat-compose button:hover{background:var(--chat-primary-dark);transform:translateY(-1px)}
-.chat-hint{font-size:9px;padding:0 18px 9px;color:#9aa49e}
-.chat-empty{color:#8a958f}
-@media(max-width:1000px){
-  .chat-shell{grid-template-columns:310px minmax(0,1fr)}
-}
-@media(max-width:800px){
-  .chat-shell{height:calc(100vh - 130px);min-height:560px;border-radius:14px}
-  .chat-sidebar{min-height:560px}
-  .chat-main{min-height:560px}
-  .chat-head{padding:0 13px}
-  .chat-messages{padding:18px 12px 12px}
-  .chat-bubble{max-width:86%}
+/* sidebar scrim */
+.scrim{position:fixed;inset:0;background:rgba(5,8,7,.6);z-index:25;opacity:0;pointer-events:none;transition:opacity .25s ease}
+.scrim.show{opacity:1;pointer-events:auto}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
 
-
-/* Chat reliability + interaction polish v5 */
-.chat-reply-bar{display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid #e2e9e5;background:#f7faf8;color:#536158;font-size:10px}
-.chat-reply-bar>div{min-width:0;flex:1;border-left:3px solid #16834a;padding-left:8px}
-.chat-reply-bar b{color:#0d6a3a;font-size:10px}
-.chat-reply-bar #chatReplyText{margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chat-reply-bar button{width:28px;height:28px;border:0;border-radius:8px;background:#fff;color:#6d7972;font-size:18px;line-height:1}
-.chat-reply-bar button:hover{background:#eaf6ef;color:#0d6a3a}
-.chat-reactions{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
-.chat-reaction{border:1px solid #dce5df;background:#f7faf8;border-radius:12px;padding:2px 6px;font-size:9px;color:#536158}
-.chat-online{color:#16914f;font-weight:700}.chat-offline{color:#8b9690}
-.chat-last-seen{font-size:10px;color:#8a958f}
+/* ===== Responsive layout + theme support patch ===== */
+#app{width:100%;max-width:100%;min-width:0;overflow-x:clip}
+.main{width:calc(100% - 238px);max-width:calc(100% - 238px);min-width:0;overflow-x:clip}
+.wrap{width:100%;max-width:1420px;min-width:0}
+.page,.card,.hero,.toolbar,.table-wrap{min-width:0;max-width:100%}
+.table-wrap{width:100%;overflow-x:auto;overscroll-behavior-x:contain}
+.table-wrap table{min-width:680px;width:100%}
+.search-box{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(150px,1fr) minmax(170px,1.4fr) minmax(90px,.6fr) auto;gap:12px;align-items:end;width:100%;min-width:0}
+.search-box>*{min-width:0}
+.search-box button{white-space:nowrap}
+.filters>*{min-width:0}
+.notification-panel{position:fixed;right:16px;left:auto;top:70px;width:min(390px,calc(100vw - 32px));max-width:calc(100vw - 32px);max-height:min(70vh,520px);overflow-y:auto;z-index:1000}
+.topbar{min-width:0}
+.page-crumb{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.theme-toggle{margin-left:auto;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:37px;padding:8px 12px;border:1px solid var(--line-2);border-radius:10px;background:var(--surface-2);color:var(--text);font-size:12px;font-weight:700;white-space:nowrap;transition:background .2s ease,border-color .2s ease,transform .2s ease}
+.theme-toggle:hover{border-color:var(--lime-line);transform:translateY(-1px)}
+.theme-toggle svg{width:16px;height:16px;flex:0 0 16px}
+/* Light palette; semantic variables keep the existing app components intact. */
+/* LIGHT MODE: match the user-approved mint/white canvas and forest-green controls. */
+body[data-theme="light"]{
+ --bg:#eff8f2;--bg-2:#ffffff;--surface:#ffffff;--surface-2:#ffffff;--surface-3:#f0f6f3;
+ --line:#dfe9e3;--line-2:#cbdcd1;--text:#17231c;--muted:#5d6d63;--faint:#7b8980;
+ --lime:#16834f;--lime-2:#0f7043;--lime-dim:rgba(22,131,79,.10);--lime-line:rgba(22,131,79,.30);
+ --green:#14885a;--green-dim:rgba(20,136,90,.10);--red:#c9363e;--red-dim:rgba(201,54,62,.09);
+ --amber:#a86b08;--amber-dim:rgba(168,107,8,.10);
+ --shadow:0 1px 2px rgba(28,55,40,.035),0 8px 24px rgba(28,95,60,.055);
+ --shadow-lg:0 20px 55px rgba(28,55,40,.16);
+ color-scheme:light;
+}
+body[data-theme="light"]::before{background:radial-gradient(850px 520px at 8% 100%,rgba(74,222,128,.17),transparent 58%),radial-gradient(850px 520px at 100% 65%,rgba(96,165,250,.16),transparent 58%),linear-gradient(115deg,#f4fbf6 0%,#edf8f1 52%,#f0f7ff 100%)}
+body[data-theme="light"]::after{opacity:.06}
+body[data-theme="light"] .sidebar{background:#fff;border-color:#dce8d5}
+body[data-theme="light"] .topbar{background:rgba(255,255,255,.97);border-color:#dce8d5}
+body[data-theme="light"] .card,body[data-theme="light"] .stat{background:#fff;border-color:#dce8d5;box-shadow:var(--shadow)}
+body[data-theme="light"] .follow,body[data-theme="light"] .chat-shell,body[data-theme="light"] .chat-sidebar,body[data-theme="light"] .chat-main{background:#fff;border-color:#dce8d5}
+body[data-theme="light"] input,body[data-theme="light"] select,body[data-theme="light"] textarea{background:#fff;color:var(--text);border-color:#c8dbbd}
+body[data-theme="light"] input:focus,body[data-theme="light"] select:focus,body[data-theme="light"] textarea:focus{background:#fff;border-color:#65a30d;box-shadow:0 0 0 3px rgba(101,163,13,.12)}
+body[data-theme="light"] .notification-item:hover,body[data-theme="light"] .nav button:hover{background:#f0f6ec}
+body[data-theme="light"] .nav button.active{background:#e7f4eb;color:#126b43}
+body[data-theme="light"] button.primary{background:#12804f;color:#fff;box-shadow:0 3px 12px rgba(18,128,79,.16)}
+body[data-theme="light"] button.primary:hover{background:#0e6d43}
+body[data-theme="light"] button.secondary{background:#f7faf8;border-color:#d3e2d8;color:#24352b}
+body[data-theme="light"] button.secondary:hover{background:#eaf5ee}
+body[data-theme="light"] .table th{background:#f0f6f2;color:#586a60;border-color:#dfe9e3}
+body[data-theme="light"] .table td{border-color:#e2ebe5}
+body[data-theme="light"] input[type="date"],body[data-theme="light"] input[type="datetime-local"]{color-scheme:light}
+@media(max-width:1200px){
+ .main{width:calc(100% - 238px);max-width:calc(100% - 238px)}
+ .search-box{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .search-box button{width:100%}
+}
+@media(max-width:980px){
+ .main{width:100%;max-width:100%}
+ .wrap{width:100%;padding-left:16px;padding-right:16px}
+ .search-box{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){
+ .search-box{grid-template-columns:minmax(0,1fr)}
+ .theme-toggle{padding:8px;gap:5px}
+ .theme-toggle .theme-label{display:none}
+ .topbar{gap:8px}
+ .wrap{padding:12px 10px 40px}
+}
 
 </style>
-
-
-<style id="apple-polish">
-:root{--apple-green:#16a34a;--apple-green-2:#22c55e;--apple-ink:#102018;--apple-bg:#f7faf8;--apple-line:rgba(16,32,24,.09);--apple-shadow:0 18px 50px rgba(16,32,24,.10)}
-body{background:radial-gradient(circle at 15% 0%,rgba(34,197,94,.10),transparent 32%),linear-gradient(180deg,#fff 0%,var(--apple-bg) 100%);color:var(--apple-ink);-webkit-font-smoothing:antialiased}
-*{scroll-behavior:smooth} button,a,input,select,textarea,.card,.stat,.panel,.nav-item,.lead-row,.chat-item{transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s ease,background-color .22s ease,border-color .22s ease,opacity .22s ease}
-button,.nav-item,a{transform:translateZ(0)} button:hover,.nav-item:hover{transform:translateY(-1px)} button:active,.nav-item:active{transform:scale(.985)}
-button{box-shadow:0 1px 2px rgba(16,32,24,.06)} button:hover{box-shadow:0 8px 22px rgba(22,163,74,.14)}
-input,select,textarea{border:1px solid var(--apple-line)!important;box-shadow:0 1px 2px rgba(16,32,24,.03),inset 0 0 0 1px rgba(255,255,255,.45)}
-input:focus,select:focus,textarea:focus{outline:none!important;border-color:rgba(22,163,74,.55)!important;box-shadow:0 0 0 4px rgba(22,163,74,.10),0 8px 24px rgba(22,163,74,.08)!important}
-.card,.panel,.stat{border-color:var(--apple-line)!important;box-shadow:0 8px 30px rgba(16,32,24,.055);animation:appleIn .45s both}
-.card:hover,.panel:hover,.stat:hover{box-shadow:var(--apple-shadow);transform:translateY(-2px)}
-.nav-item.active{background:linear-gradient(90deg,rgba(22,163,74,.12),rgba(22,163,74,.04));box-shadow:inset 3px 0 0 var(--apple-green)}
-::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:rgba(16,32,24,.16);border-radius:99px;border:2px solid transparent;background-clip:padding-box}::-webkit-scrollbar-thumb:hover{background:rgba(22,163,74,.38);background-clip:padding-box}
-@keyframes appleIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-@keyframes applePulse{0%,100%{box-shadow:0 0 0 0 rgba(22,163,74,.18)}50%{box-shadow:0 0 0 7px rgba(22,163,74,0)}}
-.toast,.notification,.modal{animation:appleIn .28s cubic-bezier(.22,1,.36,1)}
-.badge,.status{animation:applePulse 2.8s ease-in-out infinite}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
-</style>
-<style id="fast-chat-polish">
-.chat-messages{contain:layout paint;overscroll-behavior:contain;scroll-behavior:smooth}
-.chat-list{contain:layout paint;overscroll-behavior:contain}
-.chat-bubble{content-visibility:auto;contain-intrinsic-size:0 72px}
-@media (prefers-reduced-motion:reduce){.chat-messages{scroll-behavior:auto}}
-</style>
-<style id="ai-research-premium">
-.ai-research-head{align-items:center;gap:16px}.ai-confidence{padding:7px 10px;border:1px solid #dce8df;border-radius:999px;font-size:12px;font-weight:700;text-transform:capitalize;background:#f7fbf8}.ai-confidence.high{color:#087443}.ai-confidence.medium{color:#8a6500}.ai-confidence.low{color:#9a3b2f}.ai-fact,.ai-opportunity-card,.ai-offer-card{border:1px solid #dce9df;background:linear-gradient(180deg,#fbfffc,#f6fbf7);border-radius:14px;padding:13px 14px;margin-top:9px;box-shadow:0 3px 12px rgba(18,70,40,.04)}.ai-fact>div,.ai-opportunity-card>b,.ai-offer-card>b{display:block;line-height:1.42}.ai-fact>span,.ai-opportunity-card>span,.ai-offer-card>span{display:block;margin-top:7px;color:#64756b;font-size:12px;line-height:1.4}.ai-opportunity-card{border-left:3px solid #179447}.ai-offer-card{border-left:3px solid #8bbd32}.ai-opportunities,.ai-offers{display:block}.ai-empty{display:block;padding:14px;color:#728078;background:#f8faf8;border-radius:12px;margin-top:9px}.ai-section-note{margin-top:5px}.ai-research-grid .info{min-width:0}
-@media (max-width:800px){.ai-research-head{align-items:flex-start;flex-direction:column}.ai-confidence{align-self:flex-start}}
-</style>
+<base target="_blank">
 </head>
-
 <body>
 
-<div id="auth" class="auth"><div class="auth-card">
-
-<h1>Lead <span style="color:var(--green)">Search</span> Engine</h1><p class="muted" id="authSub">Secure lead management for your team.</p>
-
-<div id="loginBox">
-
-<div class="field"><label>Email</label><input id="loginEmail" type="email" autocomplete="email"></div>
-
-<div class="field" style="margin-top:10px"><label>Password</label><input id="loginPassword" type="password" autocomplete="current-password"></div>
-
-<button class="primary" onclick="login()">Log In</button>
-
-<button class="secondary auth-secondary" onclick="googleLogin()">Continue with Google</button>
-
-<div class="auth-help"><button class="auth-link" onclick="forgotEmailPassword()">Forgot password?</button><button class="auth-link" onclick="showSignup()">Create account</button></div>
-
-</div>
-
-<div id="signupBox" class="hidden">
-
-<div class="field"><label>Name</label><input id="signupName" autocomplete="name"></div>
-
-<div class="field" style="margin-top:10px"><label>Email</label><input id="signupEmail" type="email" autocomplete="email"></div>
-
-<div class="field" style="margin-top:10px"><label>Password</label><input id="signupPassword" type="password" autocomplete="new-password"></div>
-
-<button class="primary" onclick="signup()">Create Account</button>
-
-<button class="secondary auth-secondary" onclick="googleLogin()">Sign up with Google</button>
-
-<p class="muted" style="margin-top:10px">Every new Agent account remains pending until the Admin approves it.</p>
-
-<p class="muted" style="text-align:center;margin-top:14px">Already registered? <button class="auth-link" onclick="showLogin()">Log in</button></p>
-
-</div>
-
-<div id="recaptcha-container"></div><div id="authError" class="auth-error hidden"></div></div></div>
-
-<div id="app" class="hidden"><header class="top"><div class="brand">Lead <span>Search</span></div><nav class="nav" id="nav"><button data-page="dashboard" onclick="go('dashboard')" class="active">Dashboard</button><button data-page="search" onclick="go('search')">Search</button><button data-page="leads" onclick="go('leads')">My Leads</button><button data-page="groups" onclick="go('groups')">Groups</button><button data-page="ai" onclick="go('ai')">AI Research</button><button data-page="history" onclick="go('history')">History</button><button data-page="chat" onclick="go('chat')">💬 Chat <span id="chatNavCount" class="chat-unread hidden">0</span></button><button data-page="ai-call" class="admin-only" onclick="go('ai-call')">AI Call Agent</button><button data-page="admin" id="adminNav" class="hidden" onclick="go('admin')">Admin</button></nav><div class="userbar"><div class="avatar" id="avatar">U</div><div><b id="userName"></b><div class="muted" id="userRole"></div></div><div class="notification-wrap"><button class="notification-bell" onclick="toggleNotifications(event)" aria-label="Notifications">🔔<span id="notificationCount" class="notification-count hidden">0</span></button><div id="notificationPanel" class="notification-panel hidden" onclick="event.stopPropagation()"><div class="notification-head"><b>Notifications</b><span class="muted push" id="notificationSummary">0 unread</span></div><div id="notificationList"></div></div></div><button class="secondary" onclick="logout()">Logout</button></div></header>
-
-<main class="wrap">
-
-<section id="page-dashboard" class="page active"><div class="card hero"><div><h1>Dashboard</h1><p class="muted">Simple view of leads seen, contacts, calls and follow-ups.</p></div><button class="primary" onclick="go('search')">+ Find Leads</button></div><div class="stats"><div class="stat metric-search"><b id="stSeen">0</b><span>Total Leads Search</span></div><div class="stat metric-calls"><b id="stCalls">0</b><span>Calls</span></div><div class="stat metric-follow"><b id="stFollowups">0</b><span>Follow-ups</span></div><div class="stat metric-success"><b id="stSuccess">0</b><span>Success Leads</span></div></div><div class="card" style="margin-top:14px"><div class="toolbar"><h2>Follow-ups</h2><span class="muted" id="followSummary"></span><button class="secondary push" onclick="refreshDashboard()">Refresh</button></div><div id="missedAlert" class="alert hidden"></div><div class="follow-grid" style="margin-top:10px"><div><h3>Today</h3><div id="todayList"></div></div><div><h3>Missed</h3><div id="missedList"></div></div></div></div><div class="card performance-card"><div class="toolbar"><div><h2>Agent Performance</h2><span class="muted">Measured from actual calls, connected contacts, follow-ups and successful outcomes.</span></div><select id="perfPeriod" onchange="loadPerformance()" class="perf-select"><option value="all">All Time</option><option value="today">Today</option><option value="month">This Month</option></select></div><div class="table-wrap" style="margin-top:10px"><table class="table performance-table"><thead><tr><th>Rank</th><th>Agent Name</th><th>Calls</th><th>Connected</th><th>Follow-ups</th><th>Success</th><th>Failure</th><th>Percentage</th><th>Performance</th></tr></thead><tbody id="performanceBody"></tbody></table></div></div></section>
-
-<section id="page-search" class="page"><div class="card"><h2>Find Business Leads</h2><p class="muted">Search once. Save useful leads. Work them from My Leads.</p><div class="search-box" style="margin-top:12px"><div class="field"><label>City</label><input id="city" placeholder="e.g. Vijayawada"></div><div class="field"><label>Search type</label><select id="searchMode" onchange="toggleSearchMode()"><option value="category">Category</option><option value="keyword">Custom keyword</option></select></div><div class="field" id="categoryField"><label>Category</label><select id="category"></select></div><div class="field hidden" id="keywordField"><label>Keyword</label><input id="keyword" placeholder="e.g. digital marketing agency"></div><div class="field"><label>Results</label><input id="limit" type="number" min="1" max="100" value="10"></div><button class="primary" onclick="searchLeads()">Search</button></div><div class="checks"><label><input id="cityWide" type="checkbox"> Search wider city</label><label><input id="enrich" type="checkbox"> Enrich public websites</label></div><div id="searchStatus" class="result-note"></div></div><div class="card"><div class="toolbar"><h2>New Results</h2><span class="muted">Hot → Warm → Cold</span><button class="secondary push" onclick="go('leads')">Open My Leads</button></div><div class="table-wrap" style="margin-top:8px"><table class="table"><thead><tr><th>Business</th><th>Phone</th><th>Score</th><th>Priority</th><th>AI Recommendation</th><th>Actions</th></tr></thead><tbody id="resultBody"></tbody></table></div><div id="resultEmpty" class="empty">Search to see new leads.</div></div></section>
-
-<section id="page-leads" class="page"><div class="card"><div class="toolbar"><div><h2>My Leads</h2><span class="muted" id="leadCount">0 leads</span></div><button class="secondary push" onclick="exportFiltered('excel')">Excel</button><button class="secondary" onclick="exportFiltered('csv')">CSV</button></div><div class="filters" style="margin-top:12px"><input id="fCity" placeholder="City"><select id="fStatus"><option value="">Any status</option></select><select id="fType"><option value="">Any priority</option><option>Hot Lead</option><option>Warm Lead</option><option>Cold Lead</option></select><select id="fAssigned"><option value="">Any assignee</option></select><input id="fFrom" type="date"><input id="fTo" type="date"></div><div class="checks"><label><input id="fPhone" type="checkbox"> Has phone</label><label><input id="fWebsite" type="checkbox"> Has website</label><label><input id="fEmail" type="checkbox"> Has email</label><label><input id="fSocial" type="checkbox"> Has social</label></div><div class="actions"><button class="primary" onclick="loadLeads()">Search</button><button class="secondary" onclick="clearFilters()">Clear</button><select id="bulkStatus" style="width:160px"><option value="">Set status…</option></select><button class="secondary" onclick="bulkStatus()">Apply Status</button><select id="bulkAssign" class="admin-only" style="width:160px"><option value="">Assign to…</option></select><button class="secondary admin-only" onclick="bulkAssign()">Assign</button><button class="danger" onclick="bulkDelete()">Delete</button></div></div><div class="card"><div class="table-wrap"><table class="table"><thead><tr><th><input id="allLeads" type="checkbox" onchange="toggleAll(this.checked)"></th><th>Business</th><th>Phone</th><th>Priority</th><th>Status</th><th>Assigned</th><th>Follow-up</th><th>Last Contact</th><th>Actions</th></tr></thead><tbody id="leadBody"></tbody></table></div><div id="leadEmpty" class="empty hidden">No leads found.</div></div></section>
-
-<section id="page-groups" class="page"><div class="card"><div class="toolbar"><div><h2>Groups</h2><span class="muted">Keep lead lists organized.</span></div><div class="push" style="display:flex;gap:7px"><input id="groupName" placeholder="New group name" style="width:210px"><button class="primary" onclick="createGroup()">Create</button></div></div></div><div id="groupCards" class="stats"></div><div class="card hidden" id="groupView"><div class="toolbar"><h2 id="groupTitle">Group</h2><div class="push" style="display:flex;gap:7px"><button class="secondary" id="groupExcelBtn" onclick="exportGroupExcel(activeGroupId)">Excel</button><button class="secondary" onclick="closeGroup()">Close</button></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Business</th><th>Phone</th><th>Status</th><th>Priority</th><th></th></tr></thead><tbody id="groupBody"></tbody></table></div></div></section>
-
-<section id="page-history" class="page"><div class="card"><h2>Search History</h2><p class="muted">Quickly run an earlier search again.</p><div class="table-wrap" style="margin-top:10px"><table class="table"><thead><tr><th>Date</th><th>City</th><th>Search</th><th>Results</th><th>Sources</th><th></th></tr></thead><tbody id="historyBody"></tbody></table></div></div></section>
-
-<section id="page-ai" class="page"><div class="card hero"><div><h1>AI Research</h1><p class="muted">Research a business and get practical, evidence-aware outreach guidance.</p></div></div><div class="card"><div class="search-box" style="grid-template-columns:1.5fr 1fr auto"><div class="field"><label>Business / Lead Search</label><input id="aiQuery" placeholder="Example: ABC Furniture Vijayawada"></div><div class="field"><label>City (optional)</label><input id="aiCity" placeholder="Vijayawada"></div><button class="primary" onclick="runAIResearch()">AI Research Search</button></div><div id="aiStatus" class="muted" style="margin-top:10px"></div></div><div id="aiResearchResult" class="card hidden"></div></section><section id="page-ai-call" class="page admin-only"><div class="card hero"><div><h1>AI Call Agent</h1><p>Admin-only call preparation. Enter the lead number and your AI recommendation.</p></div><span class="badge warm">Admin Only</span></div><div class="card"><div class="grid2"><div class="field"><label>Lead phone number</label><input id="aiCallLeadPhone" type="tel" placeholder="+91 9876543210"></div><div class="field"><label>Caller number</label><input id="aiCallCallerPhone" type="tel" placeholder="Your business number"></div></div><div class="field" style="margin-top:10px"><label>AI Recommendation / Call Instructions</label><textarea id="aiCallRecommendation" rows="7" placeholder="Paste the AI recommendation and important talking points here..."></textarea></div><div class="toolbar" style="margin-top:10px"><label class="filter-check"><input id="aiCallRecording" type="checkbox" checked> Record call when telephony is configured</label><button class="primary push" onclick="startAICall()">Start AI Call</button></div><div id="aiCallStatus" class="muted" style="margin-top:10px">PSTN calling needs a connected telephony bridge; the browser alone cannot place an AI phone call to a normal mobile/landline number.</div></div><div class="card"><h2>Current safe mode</h2><p class="muted">The app can prepare the call inputs now. Actual phone-network calling, recording and live audio require a telephony provider/bridge plus a realtime voice model. The system will not pretend that a browser button alone can dial a lead.</p></div></section>\
-<section id="page-chat" class="page">
-  <div class="card">
-    <div class="hero">
-      <div><h1>Team Chat</h1><p>One workspace for private conversations with your approved team members.</p></div>
-      <div class="actions" style="margin-top:0"><button class="secondary" onclick="loadChat()">Refresh</button></div>
+<!-- ================= AUTH ================= -->
+<div id="auth" class="auth">
+  <div class="auth-visual">
+    <div class="brand"><span class="logo-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5l7 7-7 7z" fill="#0c1103"/><path d="M13 5h7v2h-7zM13 11h7v2h-7zM13 17h7v2h-7z" fill="#0c1103" opacity=".7"/></svg></span>Lead <span>Search</span> Engine</div>
+    <div class="auth-hero">
+      <h2>Sales intelligence,<br>engineered for <em>clarity</em>.</h2>
+      <p>Find, qualify and close local business leads with AI-assisted research, team collaboration and call intelligence — all in one focused workspace.</p>
+    </div>
+    <div class="auth-feats">
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>AI-ranked lead search across cities &amp; categories</div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/></svg>Private chat &amp; Team Room for your agents</div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 6 6.5.9-4.7 4.6 1.1 6.5L12 17l-5.9 3 1.1-6.5L2.5 8.9 9 8z"/></svg>Evidence-based AI research for every pitch</div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-8"/></svg>Live dashboards, follow-ups &amp; performance</div>
     </div>
   </div>
+  <div class="auth-panel"><div class="auth-card">
 
-  <div class="chat-shell" id="chatLayout">
-    <aside class="card chat-sidebar">
-      <div class="chat-sidebar-top"><h2>Messages</h2><span class="muted chat-count" id="chatSummary">0</span></div>
-      <div class="chat-search"><span>⌕</span><input id="chatUserSearch" placeholder="Search people or chats" oninput="renderChatDirectory()"></div>
-      <div class="chat-tabs">
-        <button id="chatTabChats" class="chat-tab active" onclick="setChatTab('chats')">Chats</button>
-        <button id="chatTabTeam" class="chat-tab" onclick="setChatTab('team')">Team</button>
+    <h1>Welcome back</h1><p class="muted" id="authSub">Secure lead management for your team.</p>
+
+    <div id="loginBox">
+      <div class="field"><label>Email</label><input id="loginEmail" type="email" autocomplete="email" placeholder="you@company.com"></div>
+      <div class="field" style="margin-top:12px"><label>Password</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+      <button class="primary" onclick="login()">Log In</button>
+      <button class="secondary auth-secondary" onclick="googleLogin()">Continue with Google</button>
+      <div class="auth-help"><button class="auth-link" onclick="forgotEmailPassword()">Forgot password?</button><button class="auth-link" onclick="showSignup()">Create account</button></div>
+    </div>
+
+    <div id="signupBox" class="hidden">
+      <div class="field"><label>Name</label><input id="signupName" autocomplete="name" placeholder="Your full name"></div>
+      <div class="field" style="margin-top:12px"><label>Email</label><input id="signupEmail" type="email" autocomplete="email" placeholder="you@company.com"></div>
+      <div class="field" style="margin-top:12px"><label>Password</label><input id="signupPassword" type="password" autocomplete="new-password" placeholder="Minimum 6 characters"></div>
+      <button class="primary" onclick="signup()">Create Account</button>
+      <button class="secondary auth-secondary" onclick="googleLogin()">Sign up with Google</button>
+      <p class="muted" style="margin-top:12px">Every new Agent account remains pending until the Admin approves it.</p>
+      <p class="muted" style="text-align:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">Already registered? <button class="auth-link" onclick="showLogin()">Log in</button></p>
+    </div>
+
+    <div id="recaptcha-container"></div>
+    <div id="authError" class="auth-error hidden"></div>
+  </div></div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hidden">
+  <div class="scrim" id="scrim" onclick="toggleSidebar(false)"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="logo-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5l7 7-7 7z" fill="#0c1103"/><path d="M13 5h7v2h-7zM13 11h7v2h-7zM13 17h7v2h-7z" fill="#0c1103" opacity=".7"/></svg></span>Lead <span>Search</span></div>
+    <nav class="nav" id="nav">
+      <button data-page="dashboard" onclick="go('dashboard')" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dashboard</button>
+      <button data-page="search" onclick="go('search')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Search</button>
+      <button data-page="leads" onclick="go('leads')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>My Leads</button>
+      <button data-page="groups" onclick="go('groups')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Groups</button>
+      <button data-page="ai" onclick="go('ai')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"/><path d="M19 15l.9 2.6 2.1.9-2.1.9-.9 2.6-.9-2.6-2.1-.9 2.1-.9z"/></svg>AI Research</button>
+      <button data-page="history" onclick="go('history')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>History</button>
+      <button data-page="chat" onclick="go('chat')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Chat <span id="chatNavCount" class="hidden">0</span></button>
+      <button data-page="ai-call" class="admin-only" onclick="go('ai-call')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 01-2.2 2A19.8 19.8 0 012 4.2 2 2 0 014 2h3a2 2 0 012 1.7c.1 1 .4 2 .7 2.9a2 2 0 01-.5 2.1L8 10a16 16 0 006 6l1.3-1.2a2 2 0 012.1-.5c.9.3 1.9.6 2.9.7A2 2 0 0122 16.9z"/></svg>AI Call Agent</button>
+      <button data-page="admin" id="adminNav" class="hidden" onclick="go('admin')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a7 7 0 100-14 7 7 0 000 14z"/><path d="M8.2 13.9L7 23l5-3 5 3-1.2-9.1"/></svg>Admin</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="avatar" id="avatar">U</div>
+        <div><b id="userName"></b><div class="muted" id="userRole"></div></div>
       </div>
-      <div id="chatList" class="chat-list"></div>
-    </aside>
-
-    <section class="card chat-main">
-      <div class="chat-head">
-        <button class="secondary chat-mobile-back" onclick="closeMobileChat()">← Back</button>
-        <div class="chat-avatar" id="chatHeadAvatar">?</div>
-        <div class="chat-head-info">
-          <div class="chat-head-name"><h2 id="chatHeadName">Team Chat</h2></div>
-          <div class="chat-head-status" id="chatHeadRole">Select a person from Team to start a conversation.</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="notification-wrap" style="margin-left:0">
+          <button class="notification-bell" onclick="toggleNotifications(event)" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg><span id="notificationCount" class="notification-count hidden">0</span></button>
+          <div id="notificationPanel" class="notification-panel hidden" onclick="event.stopPropagation()"><div class="notification-head"><b>Notifications</b><span class="muted push" id="notificationSummary">0 unread</span></div><div id="notificationList"></div></div>
         </div>
-        <button class="secondary" id="chatRefreshBtn" onclick="refreshActiveChat()" disabled>↻</button>
+        <button class="secondary" style="flex:1" onclick="logout()">Logout</button>
       </div>
+    </div>
+  </aside>
 
-      <div id="chatMessages" class="chat-messages">
-        <div class="chat-empty"><b>Welcome to Team Chat</b><br>Select a team member to start messaging.</div>
-      </div>
-      <div id="chatReplyBar" class="chat-reply-bar hidden"><div><b>Replying to message</b><div id="chatReplyText"></div></div><button type="button" onclick="cancelChatReply()" aria-label="Cancel reply">×</button></div>
+  <div class="main">
+    <header class="topbar">
+      <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <span class="page-crumb">Lead Search Engine <b id="crumbPage">/ Dashboard</b></span>
+      <button type="button" id="themeToggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Switch to light mode" title="Switch theme"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg><span class="theme-label" id="themeLabel">Light mode</span></button>
+    </header>
 
-      <div class="chat-compose">
-        <textarea id="chatInput" rows="2" maxlength="5000" placeholder="Write a message…  Enter to send · Shift+Enter for new line" onkeydown="chatInputKeydown(event)" disabled></textarea>
-        <button id="chatSendBtn" class="primary" onclick="sendChatMessage()" disabled>Send</button>
+    <main class="wrap">
+
+    <!-- DASHBOARD -->
+    <section id="page-dashboard" class="page active">
+      <div class="card hero"><div><h1>Dashboard</h1><p class="muted">Simple view of leads seen, contacts, calls and follow-ups.</p></div><button class="primary" onclick="go('search')">+ Find Leads</button></div>
+      <div class="stats">
+        <div class="stat metric-search"><b id="stSeen">0</b><span>Total Leads Search</span></div>
+        <div class="stat metric-calls"><b id="stCalls">0</b><span>Calls</span></div>
+        <div class="stat metric-follow"><b id="stFollowups">0</b><span>Follow-ups</span></div>
+        <div class="stat metric-success"><b id="stSuccess">0</b><span>Success Leads</span></div>
       </div>
-      <div class="chat-hint">Messages stay inside the Lead Search Engine. No external WhatsApp window is opened for team chat.</div>
+      <div class="card"><div class="toolbar"><h2>Follow-ups</h2><span class="muted" id="followSummary"></span><button class="secondary push" onclick="refreshDashboard()">Refresh</button></div><div id="missedAlert" class="alert hidden"></div><div class="follow-grid" style="margin-top:12px"><div><h3 style="margin-bottom:10px">Today</h3><div id="todayList"></div></div><div><h3 style="margin-bottom:10px">Missed</h3><div id="missedList"></div></div></div></div>
+      <div class="card performance-card"><div class="toolbar"><div><h2>Agent Performance</h2><span class="muted">Measured from actual calls, connected contacts, follow-ups and successful outcomes.</span></div><select id="perfPeriod" onchange="loadPerformance()" class="perf-select"><option value="all">All Time</option><option value="today">Today</option><option value="month">This Month</option></select></div><div class="table-wrap" style="margin-top:12px"><table class="table performance-table"><thead><tr><th>Rank</th><th>Agent Name</th><th>Calls</th><th>Connected</th><th>Follow-ups</th><th>Success</th><th>Failure</th><th>Percentage</th><th>Performance</th></tr></thead><tbody id="performanceBody"></tbody></table></div></div>
     </section>
+
+    <!-- SEARCH -->
+    <section id="page-search" class="page">
+      <div class="card"><h2>Find Business Leads</h2><p class="muted">Search once. Save useful leads. Work them from My Leads.</p><div class="search-box" style="margin-top:14px"><div class="field"><label>City</label><input id="city" placeholder="e.g. Vijayawada"></div><div class="field"><label>Search type</label><select id="searchMode" onchange="toggleSearchMode()"><option value="category">Category</option><option value="keyword">Custom keyword</option></select></div><div class="field" id="categoryField"><label>Category</label><select id="category"></select></div><div class="field hidden" id="keywordField"><label>Keyword</label><input id="keyword" placeholder="e.g. digital marketing agency"></div><div class="field"><label>Results</label><input id="limit" type="number" min="1" max="100" value="10"></div><button class="primary" onclick="searchLeads()">Search</button></div><div class="checks"><label><input id="cityWide" type="checkbox"> Search wider city</label><label><input id="enrich" type="checkbox"> Enrich public websites</label></div><div id="searchStatus" class="result-note"></div></div>
+      <div class="card"><div class="toolbar"><h2>New Results</h2><span class="muted">Hot → Warm → Cold</span><button class="secondary push" onclick="go('leads')">Open My Leads</button></div><div class="table-wrap" style="margin-top:10px"><table class="table"><thead><tr><th>Business</th><th>Phone</th><th>Score</th><th>Priority</th><th>AI Recommendation</th><th>Actions</th></tr></thead><tbody id="resultBody"></tbody></table></div><div id="resultEmpty" class="empty">Search to see new leads.</div></div>
+    </section>
+
+    <!-- MY LEADS -->
+    <section id="page-leads" class="page">
+      <div class="card"><div class="toolbar"><div><h2>My Leads</h2><span class="muted" id="leadCount">0 leads</span></div><button class="secondary push" onclick="exportFiltered('excel')">Excel</button><button class="secondary" onclick="exportFiltered('csv')">CSV</button></div><div class="filters" style="margin-top:14px"><input id="fCity" placeholder="City"><select id="fStatus"><option value="">Any status</option></select><select id="fType"><option value="">Any priority</option><option>Hot Lead</option><option>Warm Lead</option><option>Cold Lead</option></select><select id="fAssigned"><option value="">Any assignee</option></select><input id="fFrom" type="date"><input id="fTo" type="date"></div><div class="checks"><label><input id="fPhone" type="checkbox"> Has phone</label><label><input id="fWebsite" type="checkbox"> Has website</label><label><input id="fEmail" type="checkbox"> Has email</label><label><input id="fSocial" type="checkbox"> Has social</label></div><div class="actions"><button class="primary" onclick="loadLeads()">Search</button><button class="secondary" onclick="clearFilters()">Clear</button><select id="bulkStatus" style="width:160px"><option value="">Set status…</option></select><button class="secondary" onclick="bulkStatus()">Apply Status</button><select id="bulkAssign" class="admin-only" style="width:160px"><option value="">Assign to…</option></select><button class="secondary admin-only" onclick="bulkAssign()">Assign</button><button class="danger" onclick="bulkDelete()">Delete</button></div></div>
+      <div class="card"><div class="table-wrap"><table class="table"><thead><tr><th><input id="allLeads" type="checkbox" onchange="toggleAll(this.checked)"></th><th>Business</th><th>Phone</th><th>Priority</th><th>Status</th><th>Assigned</th><th>Follow-up</th><th>Last Contact</th><th>Actions</th></tr></thead><tbody id="leadBody"></tbody></table></div><div id="leadEmpty" class="empty hidden">No leads found.</div></div>
+    </section>
+
+    <!-- GROUPS -->
+    <section id="page-groups" class="page">
+      <div class="card"><div class="toolbar"><div><h2>Groups</h2><span class="muted">Keep lead lists organized.</span></div><div class="push" style="display:flex;gap:8px"><input id="groupName" placeholder="New group name" style="width:210px"><button class="primary" onclick="createGroup()">Create</button></div></div></div>
+      <div id="groupCards" class="stats"></div>
+      <div class="card hidden" id="groupView"><div class="toolbar"><h2 id="groupTitle">Group</h2><div class="push" style="display:flex;gap:8px"><button class="secondary" id="groupExcelBtn" onclick="exportGroupExcel(activeGroupId)">Excel</button><button class="secondary" onclick="closeGroup()">Close</button></div></div><div class="table-wrap" style="margin-top:12px"><table class="table"><thead><tr><th>Business</th><th>Phone</th><th>Status</th><th>Priority</th><th></th></tr></thead><tbody id="groupBody"></tbody></table></div></div>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="page-history" class="page">
+      <div class="card"><h2>Search History</h2><p class="muted">Quickly run an earlier search again.</p><div class="table-wrap" style="margin-top:12px"><table class="table"><thead><tr><th>Date</th><th>City</th><th>Search</th><th>Results</th><th>Sources</th><th></th></tr></thead><tbody id="historyBody"></tbody></table></div></div>
+    </section>
+
+    <!-- AI RESEARCH -->
+    <section id="page-ai" class="page">
+      <div class="card hero"><div><h1>AI Research</h1><p class="muted">Research a business and get practical, evidence-aware outreach guidance.</p></div></div>
+      <div class="card"><div class="search-box" style="grid-template-columns:1.5fr 1fr auto"><div class="field"><label>Business / Lead Search</label><input id="aiQuery" placeholder="Example: ABC Furniture Vijayawada"></div><div class="field"><label>City (optional)</label><input id="aiCity" placeholder="Vijayawada"></div><button class="primary" onclick="runAIResearch()">AI Research Search</button></div><div id="aiStatus" class="muted" style="margin-top:12px"></div></div>
+      <div id="aiResearchResult" class="card hidden"></div>
+    </section>
+
+    <!-- AI CALL AGENT -->
+    <section id="page-ai-call" class="page admin-only">
+      <div class="card hero"><div><h1>AI Call Agent</h1><p>Admin-only call preparation. Enter the lead number and your AI recommendation.</p></div><span class="badge warm">Admin Only</span></div>
+      <div class="card"><div class="grid2"><div class="field"><label>Lead phone number</label><input id="aiCallLeadPhone" type="tel" placeholder="+91 9876543210"></div><div class="field"><label>Caller number</label><input id="aiCallCallerPhone" type="tel" placeholder="Your business number"></div></div><div class="field" style="margin-top:12px"><label>AI Recommendation / Call Instructions</label><textarea id="aiCallRecommendation" rows="7" placeholder="Paste the AI recommendation and important talking points here..."></textarea></div><div class="toolbar" style="margin-top:12px"><label class="filter-check"><input id="aiCallRecording" type="checkbox" checked> Record call when telephony is configured</label><button class="primary push" onclick="startAICall()">Start AI Call</button></div><div id="aiCallStatus" class="muted" style="margin-top:12px">PSTN calling needs a connected telephony bridge; the browser alone cannot place an AI phone call to a normal mobile/landline number.</div></div>
+      <div class="card"><h2>Current safe mode</h2><p class="muted">The app can prepare the call inputs now. Actual phone-network calling, recording and live audio require a telephony provider/bridge plus a realtime voice model. The system will not pretend that a browser button alone can dial a lead.</p></div>
+    </section>
+
+    <!-- CHAT -->
+    <section id="page-chat" class="page">
+      <div class="chat-shell" id="chatLayout">
+        <aside class="chat-sidebar">
+          <div class="chat-sidebar-top"><h2>Messages</h2><span class="chat-count" id="chatSummary">0</span></div>
+          <div class="chat-search"><span>⌕</span><input id="chatUserSearch" placeholder="Search people or chats" oninput="renderChatDirectory()"></div>
+          <div class="chat-tabs">
+            <button id="chatTabChats" class="chat-tab active" onclick="setChatTab('chats')">Chats</button>
+            <button id="chatTabTeam" class="chat-tab" onclick="setChatTab('team')">Team</button>
+          </div>
+          <div id="chatList" class="chat-list"></div>
+        </aside>
+        <section class="chat-main">
+          <div class="chat-head">
+            <button class="secondary chat-mobile-back" onclick="closeMobileChat()">← Back</button>
+            <div class="chat-avatar" id="chatHeadAvatar">?</div>
+            <div class="chat-head-info">
+              <div class="chat-head-name"><h2 id="chatHeadName">Team Chat</h2></div>
+              <div class="chat-head-status" id="chatHeadRole">Select a person from Team to start a conversation.</div>
+            </div>
+            <button class="secondary" id="chatRefreshBtn" onclick="refreshActiveChat()" disabled>↻</button>
+          </div>
+          <div id="chatMessages" class="chat-messages">
+            <div class="chat-empty"><b>Welcome to Team Chat</b><br>Select a team member to start messaging.</div>
+          </div>
+          <div id="chatReplyBar" class="chat-reply-bar hidden"><div><b>Replying to message</b><div id="chatReplyText"></div></div><button type="button" onclick="cancelChatReply()" aria-label="Cancel reply">×</button></div>
+          <div class="chat-compose">
+            <textarea id="chatInput" rows="2" maxlength="5000" placeholder="Write a message…  Enter to send · Shift+Enter for new line" onkeydown="chatInputKeydown(event)" disabled></textarea>
+            <button id="chatSendBtn" class="primary" onclick="sendChatMessage()" disabled>Send</button>
+          </div>
+          <div class="chat-hint">Messages stay inside the Lead Search Engine. No external WhatsApp window is opened for team chat.</div>
+        </section>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="page-admin" class="page">
+      <div class="card"><div class="toolbar"><div><h2>Agent Management</h2><p class="muted">One Admin account controls all Agent accounts.</p></div><button class="primary push" onclick="createAgent()">+ Create Agent</button></div><div class="table-wrap" style="margin-top:12px"><table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody id="teamBody"></tbody></table></div></div>
+      <div class="card"><h2>Activity</h2><div class="table-wrap" style="margin-top:12px"><table class="table"><thead><tr><th>Date</th><th>User</th><th>Lead</th><th>Action</th><th>Details</th></tr></thead><tbody id="activityBody"></tbody></table></div></div>
+      <div class="card"><div class="toolbar"><div><h2>Google Sheets</h2><span class="muted" id="sheetStatus">Optional</span></div><button class="secondary push" onclick="syncSheets()">Sync now</button></div></div>
+    </section>
+
+    </main>
   </div>
+</div>
 
+<div id="detailModal" class="modal hidden" onclick="if(event.target===this)closeDetail()"><div class="modal-box"><div id="detailContent"></div></div></div>
+<div id="toast" class="toast hidden"></div>
 
-</section>
-<section id="page-admin" class="page"><div class="card"><div class="toolbar"><div><h2>Agent Management</h2><p class="muted">One Admin account controls all Agent accounts.</p></div><button class="primary push" onclick="createAgent()">+ Create Agent</button></div><div class="table-wrap" style="margin-top:10px"><table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody id="teamBody"></tbody></table></div></div><div class="card"><h2>Activity</h2><div class="table-wrap" style="margin-top:10px"><table class="table"><thead><tr><th>Date</th><th>User</th><th>Lead</th><th>Action</th><th>Details</th></tr></thead><tbody id="activityBody"></tbody></table></div></div><div class="card"><div class="toolbar"><div><h2>Google Sheets</h2><span class="muted" id="sheetStatus">Optional</span></div><button class="secondary push" onclick="syncSheets()">Sync now</button></div></div></section>
-
-</main></div>
-
-<div id="detailModal" class="modal hidden" onclick="if(event.target===this)closeDetail()"><div class="modal-box"><div id="detailContent"></div></div></div><div id="toast" class="toast hidden"></div>
-
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 
 <script>
-
 const firebaseConfig={apiKey:"AIzaSyCGG7lJ2CnUyL4vXiH9uFBVd0gI3DppzF4",authDomain:"leads-search-engine-585f8.firebaseapp.com",projectId:"leads-search-engine-585f8",storageBucket:"leads-search-engine-585f8.firebasestorage.app",messagingSenderId:"843332786560",appId:"1:843332786560:web:1de3d83c3ed95c82a78965"};
-
 firebase.initializeApp(firebaseConfig);
-
 const firebaseAuth=firebase.auth();
-
 let phoneConfirmationResult=null,phoneAuthMode="login",phoneRecaptcha=null;
-
 const API="";const STATUSES=["New","Contacted","Follow-up","Negotiation","Converted","Lost"];const CATEGORIES=["Restaurant","Cafe","Bakery","Bar","Gym","Salon","Dentist","Clinic","Pharmacy","Hotel","Real Estate","Supermarket","Jewellery","Furniture","Car Repair","Travel Agency","Photography","Event Management","Interior Design","Boutique"];
-
 let token=localStorage.getItem("lse_token")||"",user=null,team=[],leads=[],results=[],groups=[],activeGroupId=null,notificationTimer=null;
 let chatConversations=[],chatUsers=[],activeConversationId=null,chatTab="team",chatPollTimer=null,chatPresenceTimer=null,chatFastTimer=null,chatSending=false,activeChatMode="team",chatReplyTo=null;
-
 const $=id=>document.getElementById(id);const esc=v=>String(v??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
-
 function toast(msg,error=false){const x=$("toast");x.textContent=msg;x.classList.toggle("err",error);x.classList.remove("hidden");clearTimeout(window.__toast);window.__toast=setTimeout(()=>x.classList.add("hidden"),3000)}
-
 function fmt(v){if(!v)return "—";try{return new Date(v).toLocaleString([], {dateStyle:"medium",timeStyle:"short"})}catch{return v}}
-
 function dateOnly(v){if(!v)return "—";try{return new Date(v).toLocaleDateString()}catch{return v}}
-
 function priority(t){return t==="Hot Lead"?"hot":t==="Warm Lead"?"warm":"cold"}function statusClass(s){return s==="New"?"snew":s==="Contacted"?"scontact":s==="Follow-up"?"sfollow":s==="Negotiation"?"sneg":"sclosed"}
-
 function member(id){const m=team.find(x=>Number(x.id)===Number(id));return m?(m.name||m.email):"Unassigned"}
-
 async function api(path,opt={}){const headers={"Content-Type":"application/json",...(opt.headers||{})};if(token)headers.Authorization="Bearer "+token;const r=await fetch(API+path,{...opt,headers});let d={};try{d=await r.json()}catch{}if(!r.ok){const err=Error(d.detail||"Something went wrong.");err.status=r.status;throw err}return d}
-
 function showLogin(){$("loginBox").classList.remove("hidden");$("signupBox").classList.add("hidden");clearAuthError()}
-
 function showSignup(){$("loginBox").classList.add("hidden");$("signupBox").classList.remove("hidden");clearAuthError()}
-
 function showAuthError(msg){$('authError').textContent=msg;$('authError').classList.remove('hidden')}
-
 function clearAuthError(){$('authError').classList.add('hidden')}
-
 async function syncFirebaseUser(firebaseUser,nameOverride="",provider="firebase"){
-
- const idToken=await firebaseUser.getIdToken(true);
-
- return await api('/api/auth/firebase-sync',{method:'POST',body:JSON.stringify({id_token:idToken,name:(nameOverride||firebaseUser.displayName||'').trim()||null,phone:firebaseUser.phoneNumber||null,auth_provider:provider})});
-
+ const idToken=await firebaseUser.getIdToken(true);
+ return await api('/api/auth/firebase-sync',{method:'POST',body:JSON.stringify({id_token:idToken,name:(nameOverride||firebaseUser.displayName||'').trim()||null,phone:firebaseUser.phoneNumber||null,auth_provider:provider})});
 }
-
 async function login(){clearAuthError();const email=$('loginEmail').value.trim(),password=$('loginPassword').value;if(!email||!password)return showAuthError('Enter your email and password.');try{try{const cred=await firebaseAuth.signInWithEmailAndPassword(email,password);const d=await syncFirebaseUser(cred.user,'','password');token=d.token;localStorage.setItem('lse_token',token);user=d.user;await startApp();return}catch(firebaseErr){if(firebaseErr.status===403){try{await firebaseAuth.signOut()}catch{}return showAuthError(firebaseErr.message||'Account is not approved yet.')}}const d=await api('/api/login',{method:'POST',body:JSON.stringify({email,password})});token=d.token;localStorage.setItem('lse_token',token);user=d.user;await startApp()}catch(e){showAuthError(e.message||'Login failed.')}}
-
 async function signup(){clearAuthError();const name=$('signupName').value.trim(),email=$('signupEmail').value.trim(),password=$('signupPassword').value;if(!name)return showAuthError('Enter your name.');if(!email||!email.includes('@'))return showAuthError('Enter a valid email address.');if(password.length<6)return showAuthError('Password must be at least 6 characters.');try{const cred=await firebaseAuth.createUserWithEmailAndPassword(email,password);await cred.user.updateProfile({displayName:name});await syncFirebaseUser(cred.user,name,'password');await firebaseAuth.signOut();showLogin();showAuthError('Account created. Wait for Admin approval before logging in.')}catch(e){try{await firebaseAuth.signOut()}catch{}showAuthError(e.message||'Signup failed.')}}
-
 async function googleLogin(){clearAuthError();try{const provider=new firebase.auth.GoogleAuthProvider();const cred=await firebaseAuth.signInWithPopup(provider);const d=await syncFirebaseUser(cred.user,cred.user.displayName||'','google');token=d.token;localStorage.setItem('lse_token',token);user=d.user;await startApp()}catch(e){try{await firebaseAuth.signOut()}catch{}showAuthError(e.message||'Google sign-in failed.')}}
-
 function normalizePhone(v){let p=String(v||'').trim().replace(/[()\s-]/g,'');if(/^0\d{10}$/.test(p))p='+91'+p.slice(1);else if(/^\d{10}$/.test(p))p='+91'+p;return p}
-
 async function sendPhoneCode(mode){clearAuthError();phoneAuthMode=mode;const input=$(mode==='signup'?'signupPhone':'loginPhone'),phone=normalizePhone(input.value);if(!/^\+\d{8,15}$/.test(phone))return showAuthError('Enter a valid phone number, e.g. +91 9876543210.');try{if(!phoneRecaptcha)phoneRecaptcha=new firebase.auth.RecaptchaVerifier('recaptcha-container',{size:'invisible'});phoneConfirmationResult=await firebaseAuth.signInWithPhoneNumber(phone,phoneRecaptcha);$(mode==='signup'?'signupPhoneCodeWrap':'loginPhoneCodeWrap').classList.remove('hidden');showAuthError('OTP sent. Enter the code.')}catch(e){if(phoneRecaptcha){try{phoneRecaptcha.clear()}catch{}phoneRecaptcha=null}showAuthError(e.message||'Could not send OTP.')}}
-
 async function verifyPhoneCode(){clearAuthError();if(!phoneConfirmationResult)return showAuthError('Send the OTP first.');const code=$(phoneAuthMode==='signup'?'signupPhoneCode':'loginPhoneCode').value.trim();if(!/^\d{6}$/.test(code))return showAuthError('Enter the 6-digit OTP.');try{const cred=await phoneConfirmationResult.confirm(code);const name=phoneAuthMode==='signup'?$('signupName').value.trim():'';if(phoneAuthMode==='signup'&&!name){await firebaseAuth.signOut();return showAuthError('Enter your name before phone signup.')}const d=await syncFirebaseUser(cred.user,name,'phone');token=d.token;localStorage.setItem('lse_token',token);user=d.user;await startApp()}catch(e){try{await firebaseAuth.signOut()}catch{}showAuthError(e.message||'Phone verification failed.')}}
-
 async function forgotEmailPassword(){clearAuthError();const email=$('loginEmail').value.trim();if(!email)return showAuthError('Enter your email first.');try{await firebaseAuth.sendPasswordResetEmail(email);showAuthError('Password reset email sent.')}catch(e){showAuthError(e.message||'Could not send password reset email.')}}
-
 function logout(){token="";user=null;localStorage.removeItem("lse_token");try{firebaseAuth.signOut()}catch{}location.reload()}
+// Theme preference is stored locally; does not touch authentication or backend APIs.
+function applyTheme(theme){
+  const chosen=theme==='light'?'light':'dark';
+  document.body.dataset.theme=chosen;
+  const btn=document.getElementById('themeToggle');
+  const label=document.getElementById('themeLabel');
+  const icon=document.getElementById('themeIcon');
+  if(label)label.textContent=chosen==='dark'?'Light mode':'Dark mode';
+  if(btn){btn.setAttribute('aria-label',chosen==='dark'?'Switch to light mode':'Switch to dark mode');btn.title=chosen==='dark'?'Switch to light mode':'Switch to dark mode';}
+  if(icon){icon.innerHTML=chosen==='dark'?'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>':'<path d="M20.9 13A8.5 8.5 0 0 1 11 3.1 8.5 8.5 0 1 0 20.9 13Z"/>'; }
+}
+function toggleTheme(){
+  const next=document.body.dataset.theme==='dark'?'light':'dark';
+  try{localStorage.setItem('lse-theme',next)}catch(e){}
+  applyTheme(next);
+}
+(function initTheme(){let saved='light';try{saved=localStorage.getItem('lse-theme')||'light'}catch(e){}applyTheme(saved)})();
 
 async function startApp(){try{if(!user){const me=await api("/api/me");user=me.user}const tm=await api("/api/team-members");team=tm.team_members||[];$('auth').classList.add("hidden");$('app').classList.remove("hidden");$('userName').textContent=user.name||user.email.split('@')[0];$('userRole').textContent=user.role||"Agent";$('avatar').textContent=(user.name||user.email||"U").charAt(0).toUpperCase();$('adminNav').classList.toggle("hidden",user.role!=="Admin");document.querySelectorAll('.admin-only').forEach(x=>x.classList.toggle('hidden',user.role!=='Admin'));fillStatic();await loadGroups();await refreshDashboard();await loadNotifications();await loadChat();if(notificationTimer)clearInterval(notificationTimer);if(chatPresenceTimer)clearInterval(chatPresenceTimer);chatPresenceTimer=setInterval(()=>{if(token)api("/api/chat/presence",{method:"POST"}).catch(()=>{})},15000);api("/api/chat/presence",{method:"POST"}).catch(()=>{});notificationTimer=setInterval(()=>{if(!token)return;loadNotifications(true);loadChatUnreadCount(true);loadTeamRoomUnreadCount(true)},8000);
 if(chatFastTimer)clearInterval(chatFastTimer);
 chatFastTimer=setInterval(()=>{if(!token||document.visibilityState!=="visible")return;if(!document.getElementById("page-chat")?.classList.contains("active"))return;if(activeChatMode==='team')loadTeamRoomMessages(true,true);else if(activeConversationId)loadChatMessages(activeConversationId,true,true)},2200)}catch(e){localStorage.removeItem("lse_token");token="";$('auth').classList.remove("hidden");$('app').classList.add("hidden");toast(e.message,true)}}
-
-function go(page){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));$('page-'+page).classList.add('active');document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===page));if(page==='dashboard')refreshDashboard();if(page==='leads')loadLeads();if(page==='groups')loadGroups();if(page==='history')loadHistory();if(page==='ai'){}if(page==='chat')loadChat();if(page==='ai-call'&&user?.role!=='Admin')return;if(page==='admin'&&user?.role==='Admin')loadAdmin()}
-
+const PAGE_TITLES={dashboard:"Dashboard",search:"Search",leads:"My Leads",groups:"Groups",ai:"AI Research",history:"History",chat:"Team Chat","ai-call":"AI Call Agent",admin:"Admin"};
+function toggleSidebar(force){const s=$("sidebar"),sc=$("scrim");const open=typeof force==="boolean"?force:!s.classList.contains("open");s.classList.toggle("open",open);sc.classList.toggle("show",open)}
+function go(page){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));$('page-'+page).classList.add('active');document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===page));const crumb=$("crumbPage");if(crumb)crumb.textContent="/ "+(PAGE_TITLES[page]||page);toggleSidebar(false);if(page==='dashboard')refreshDashboard();if(page==='leads')loadLeads();if(page==='groups')loadGroups();if(page==='history')loadHistory();if(page==='ai'){}if(page==='chat')loadChat();if(page==='ai-call'&&user?.role!=='Admin')return;if(page==='admin'&&user?.role==='Admin')loadAdmin()}
 function fillStatic(){const opts=CATEGORIES.map(x=>`<option>${esc(x)}</option>`).join('');$('category').innerHTML=opts;const st=STATUSES.map(x=>`<option>${x}</option>`).join('');$('fStatus').innerHTML='<option value="">Any status</option>'+st;$('bulkStatus').innerHTML='<option value="">Set status…</option>'+st;fillTeam()}
-
 function fillTeam(){const opts='<option value="">Any assignee</option>'+team.map(m=>`<option value="${m.id}">${esc(m.name||m.email)}</option>`).join('');$('fAssigned').innerHTML=opts;if(user?.role==='Admin'){$('bulkAssign').innerHTML='<option value="">Assign to…</option>'+team.map(m=>`<option value="${m.id}">${esc(m.name||m.email)}</option>`).join('')}}
-
 function toggleSearchMode(){const keyword=$('searchMode').value==='keyword';$('categoryField').classList.toggle('hidden',keyword);$('keywordField').classList.toggle('hidden',!keyword)}
-
 function qFilters(){const p=new URLSearchParams();const add=(k,v)=>{if(v!==''&&v!=null)p.set(k,v)};add('city',$('fCity').value.trim());add('status',$('fStatus').value);add('lead_type',$('fType').value);add('assigned_to',$('fAssigned').value);add('date_from',$('fFrom').value);add('date_to',$('fTo').value);if($('fPhone').checked)p.set('has_phone','true');if($('fWebsite').checked)p.set('has_website','true');if($('fEmail').checked)p.set('has_email','true');if($('fSocial').checked)p.set('has_social','true');return p.toString()?('?'+p):''}
-
 function clearFilters(){['fCity','fFrom','fTo'].forEach(x=>$(x).value='');['fPhone','fWebsite','fEmail','fSocial'].forEach(x=>$(x).checked=false);$('fStatus').value='';$('fType').value='';$('fAssigned').value='';loadLeads()}
 
+function socialLinksHtml(l){const items=[['LinkedIn',l.linkedin],['Instagram',l.instagram],['Facebook',l.facebook],['X',l.twitter],['YouTube',l.youtube],['TikTok',l.tiktok]];const allowed=['linkedin.com','instagram.com','facebook.com','fb.com','x.com','twitter.com','youtube.com','youtu.be','tiktok.com'];const links=items.filter(([label,url])=>{if(!url)return false;try{const u=new URL(url);return u.protocol==='https:'&&allowed.some(h=>u.hostname===h||u.hostname.endsWith('.'+h))}catch(e){return false}});return links.length?'<div class="social-links" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">'+links.map(([label,url])=>`<a class="badge" target="_blank" rel="noopener noreferrer" href="${esc(url)}">${label}</a>`).join('')+'</div>':`<div class="muted" style="font-size:11px;margin-top:4px">${l.social_status==='not_found_in_public_search'?'Social profiles: not found in public search':l.social_status==='not_verified'?'Social profiles: not verified':'Social profiles: not checked'}</div>`}
 async function searchLeads(){const city=$('city').value.trim(),keywordMode=$('searchMode').value==='keyword',category=keywordMode?null:$('category').value,keyword=keywordMode?$('keyword').value.trim():null;if(!city)return toast('Enter a city.',true);if(keywordMode&&!keyword)return toast('Enter a keyword.',true);$('searchStatus').innerHTML='<span class="spinner"></span> Searching…';try{const d=await api('/api/search',{method:'POST',body:JSON.stringify({city,category,keyword,limit:Math.min(100,Math.max(1,Number($('limit').value)||10)),city_wide:$('cityWide').checked,radius_meters:5000,enrich:$('enrich').checked})});results=d.leads||[];renderResults();$('searchStatus').textContent=`Found ${d.count||0} new lead(s). ${d.duplicates_skipped||0} duplicate(s) skipped.`;if(d.warnings?.length)toast(d.warnings.join(' '),true);await Promise.all([loadLeads(),refreshDashboard()])}catch(e){$('searchStatus').textContent=e.message;toast(e.message,true)}}
-
-function renderResults(){const body=$('resultBody');body.innerHTML=results.map(l=>`<tr><td><b>${esc(l.name)}</b><br><span class="muted">${esc(l.city||'')} · ${esc(l.category||'')}</span>${l.is_duplicate?'<br><span class="badge cold">Duplicate</span>':''}</td><td>${l.phone?`<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>`:'—'}</td><td>${l.lead_score??'—'}</td><td><span class="badge ${priority(l.lead_type)}">${esc(l.lead_type||'Cold Lead')}</span></td><td>${esc(l.ai_recommendation||'Review and qualify this lead')}</td><td><div class="actions"><button class="primary" onclick="openDetail(${l.id})">Open</button>${l.phone?`<button class="secondary" onclick="openWhatsApp(${l.id})">WhatsApp</button>`:''}<select class="group-select" id="rg${l.id}"><option value="">${groups.length?'Add to Group':'No groups yet'}</option>${groups.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select><button class="secondary" onclick="addResultToGroup(${l.id})">Add</button><button class="secondary" onclick="createGroupFromSearch(${l.id})">+ Group</button></div></td></tr>`).join('');$('resultEmpty').classList.toggle('hidden',results.length>0)}
-
+function renderResults(){const body=$('resultBody');body.innerHTML=results.map(l=>`<tr><td><b>${esc(l.name)}</b><br><span class="muted">${esc(l.city||'')} · ${esc(l.category||'')}</span>${l.is_duplicate?'<br><span class="badge cold">Duplicate</span>':''}${socialLinksHtml(l)}</td><td>${l.phone?`<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>`:'—'}</td><td>${l.lead_score??'—'}</td><td><span class="badge ${priority(l.lead_type)}">${esc(l.lead_type||'Cold Lead')}</span></td><td>${esc(l.ai_recommendation||'Review and qualify this lead')}</td><td><div class="actions"><button class="primary" onclick="openDetail(${l.id})">Open</button>${l.phone?`<button class="secondary" onclick="openWhatsApp(${l.id})">WhatsApp</button>`:''}<select class="group-select" id="rg${l.id}"><option value="">${groups.length?'Add to Group':'No groups yet'}</option>${groups.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select><button class="secondary" onclick="addResultToGroup(${l.id})">Add</button><button class="secondary" onclick="createGroupFromSearch(${l.id})">+ Group</button></div></td></tr>`).join('');$('resultEmpty').classList.toggle('hidden',results.length>0)}
 async function loadLeads(){try{const d=await api('/api/leads'+qFilters());leads=d.leads||[];renderLeads()}catch(e){toast(e.message,true)}}
-
-function renderLeads(){$('leadBody').innerHTML=leads.map(l=>`<tr><td><input class="lead-check" type="checkbox" data-id="${l.id}"></td><td><b>${esc(l.name)}</b><br><span class="muted">${esc(l.city||'')} · ${esc(l.category||'')}</span>${l.is_duplicate?'<br><span class="badge cold">Duplicate</span>':''}</td><td>${l.phone?`<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>`:'—'}</td><td><span class="badge ${priority(l.lead_type)}">${esc(l.lead_type||'Cold Lead')}</span></td><td><select onchange="updateStatus(${l.id},this.value)">${STATUSES.map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('')}</select></td><td>${esc(member(l.assigned_to))}</td><td>${dateOnly(l.next_followup_date)}</td><td>${dateOnly(l.last_contacted_date)}</td><td><div class="actions"><button class="secondary" onclick="openDetail(${l.id})">Open</button>${l.phone?'<button class="secondary" onclick="openWhatsApp('+l.id+')">WhatsApp</button>':''}<button class="secondary" onclick="downloadLeadExcel(${l.id})">Download</button></div></td></tr>`).join('');$('leadCount').textContent=`${leads.length} lead(s)`;$('leadEmpty').classList.toggle('hidden',leads.length>0);$('allLeads').checked=false}
-
+function renderLeads(){$('leadBody').innerHTML=leads.map(l=>`<tr><td><input class="lead-check" type="checkbox" data-id="${l.id}"></td><td><b>${esc(l.name)}</b><br><span class="muted">${esc(l.city||'')} · ${esc(l.category||'')}</span>${l.is_duplicate?'<br><span class="badge cold">Duplicate</span>':''}${socialLinksHtml(l)}</td><td>${l.phone?`<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>`:'—'}</td><td><span class="badge ${priority(l.lead_type)}">${esc(l.lead_type||'Cold Lead')}</span></td><td><select onchange="updateStatus(${l.id},this.value)">${STATUSES.map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('')}</select></td><td>${esc(member(l.assigned_to))}</td><td>${dateOnly(l.next_followup_date)}</td><td>${dateOnly(l.last_contacted_date)}</td><td><div class="actions"><button class="secondary" onclick="openDetail(${l.id})">Open</button>${l.phone?'<button class="secondary" onclick="openWhatsApp('+l.id+')">WhatsApp</button>':''}<button class="secondary" onclick="downloadLeadExcel(${l.id})">Download</button></div></td></tr>`).join('');$('leadCount').textContent=`${leads.length} lead(s)`;$('leadEmpty').classList.toggle('hidden',leads.length>0);$('allLeads').checked=false}
 function selected(){return [...document.querySelectorAll('.lead-check:checked')].map(x=>Number(x.dataset.id))}function toggleAll(on){document.querySelectorAll('.lead-check').forEach(x=>x.checked=on)}
-
 async function updateStatus(id,status){try{await api(`/api/leads/${id}/status`,{method:'PATCH',body:JSON.stringify({status})});const l=[...leads,...results].find(x=>x.id===id);if(l)l.status=status;toast('Status updated');await Promise.all([loadLeads(),refreshDashboard()])}catch(e){toast(e.message,true)}}
-
 function detailInfo(label,value){return `<div class="info"><b>${esc(label)}</b>${value?esc(value):'—'}</div>`}
-
 function localInput(v){if(!v)return '';const d=new Date(v);const pad=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`}
-
-async function openDetail(id){let l=[...leads,...results].find(x=>Number(x.id)===Number(id));if(!l){try{const d=await api('/api/leads');l=(d.leads||[]).find(x=>Number(x.id)===Number(id))}catch{}}if(!l)return toast('Lead not found.',true);const assigned=user?.role==='Admin'?`<select id="dAssigned"><option value="">Unassigned</option>${team.map(m=>`<option value="${m.id}" ${Number(m.id)===Number(l.assigned_to)?'selected':''}>${esc(m.name||m.email)}</option>`).join('')}</select>`:`<div class="info"><b>Assigned to</b>${esc(member(l.assigned_to))}</div>`;$('detailContent').innerHTML=`<div class="modal-head"><div><h2>${esc(l.name)}</h2><span class="badge ${priority(l.lead_type)}">${esc(l.lead_type||'Cold Lead')}</span> <span class="badge ${statusClass(l.status)}">${esc(l.status||'New')}</span></div><button class="modal-close" onclick="closeDetail()">×</button></div><div class="info-grid" style="margin-top:12px">${detailInfo('Phone',l.phone)}${detailInfo('City',l.city)}${detailInfo('Category',l.category)}${detailInfo('Rating',l.rating)}${detailInfo('Reviews',l.reviews)}${detailInfo('Website',l.website)}</div><div class="ai-box"><div class="ai-title">🤖 AI Recommendation</div><p><b>${esc(l.ai_recommendation||'No recommendation yet')}</b></p><p>${esc(l.ai_reason||'Use the lead score and business information to qualify this lead.')}</p></div><div class="grid2" style="margin-top:10px"><div><label>Status</label><select id="dStatus">${STATUSES.map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('')}</select></div><div><label>Next follow-up</label><input id="dFollow" type="datetime-local" value="${localInput(l.next_followup_date)}"></div></div><div style="margin-top:10px"><label>Notes</label><textarea id="dNotes" placeholder="Important business notes…">${esc(l.notes||'')}</textarea></div><div style="margin-top:10px"><label>Assignment</label>${assigned}</div><div class="actions"><button class="primary" onclick="saveCRM(${id})">Save Lead</button>${l.phone?`<button class="secondary" onclick="openWhatsApp(${id})">WhatsApp</button>`:''}${l.maps_url?`<a class="secondary" target="_blank" href="${esc(l.maps_url)}">Maps</a>`:''}</div><div class="call-box"><div class="toolbar"><div><h3>Call / Contact Log</h3><span class="muted">Record what happened after every call.</span></div></div><div class="outcomes" id="outcomes">${['Connected','No Answer','Interested','Follow-up','Not Interested','Converted'].map(o=>`<button type="button" class="outcome" data-outcome="${o}" onclick="chooseOutcome('${o}')">${o}</button>`).join('')}</div><div class="grid2"><div><label>Call date</label><input id="callDate" type="datetime-local" value="${localInput(new Date().toISOString())}"></div><div><label>Outcome</label><input id="callOutcome" placeholder="Choose above or type outcome"></div></div><label style="margin-top:9px">Call notes</label><textarea id="callNotes" placeholder="What did the lead say? What is the next action?"></textarea><div class="actions"><button class="primary" onclick="saveCall(${id})">Save Call</button></div><div class="toolbar" style="margin-top:12px"><h3>Call History</h3><span class="muted push" id="callCount"></span></div><div id="callHistory" class="timeline">Loading…</div></div>`;$('detailModal').classList.remove('hidden');loadCalls(id)}
-
+async function openDetail(id){let l=[...leads,...results].find(x=>Number(x.id)===Number(id));if(!l){try{const d=await api('/api/leads');l=(d.leads||[]).find(x=>Number(x.id)===Number(id))}catch{}}if(!l)return toast('Lead not found.',true);const assigned=user?.role==='Admin'?`<select id="dAssigned"><option value="">Unassigned</option>${team.map(m=>`<option value="${m.id}" ${Number(m.id)===Number(l.assigned_to)?'selected':''}>${esc(m.name||m.email)}</option>`).join('')}</select>`:`<div class="info"><b>Assigned to</b>${esc(member(l.assigned_to))}</div>`;$('detailContent').innerHTML=`<div class="modal-head"><div><h2>${esc(l.name)}</h2><span class="badge ${priority(l.lead_type)}">${esc(l.lead_type||'Cold Lead')}</span> <span class="badge ${statusClass(l.status)}">${esc(l.status||'New')}</span></div><button class="modal-close" onclick="closeDetail()">×</button></div><div class="info-grid" style="margin-top:14px">${detailInfo('Phone',l.phone)}${detailInfo('City',l.city)}${detailInfo('Category',l.category)}${detailInfo('Rating',l.rating)}${detailInfo('Reviews',l.reviews)}${detailInfo('Website',l.website)}</div><div class="ai-box"><div class="ai-title">🤖 AI Recommendation</div><p><b>${esc(l.ai_recommendation||'No recommendation yet')}</b></p><p>${esc(l.ai_reason||'Use the lead score and business information to qualify this lead.')}</p></div><div class="grid2" style="margin-top:12px"><div><label>Status</label><select id="dStatus">${STATUSES.map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('')}</select></div><div><label>Next follow-up</label><input id="dFollow" type="datetime-local" value="${localInput(l.next_followup_date)}"></div></div><div style="margin-top:12px"><label>Notes</label><textarea id="dNotes" placeholder="Important business notes…">${esc(l.notes||'')}</textarea></div><div style="margin-top:12px"><label>Assignment</label>${assigned}</div><div class="actions"><button class="primary" onclick="saveCRM(${id})">Save Lead</button>${l.phone?`<button class="secondary" onclick="openWhatsApp(${id})">WhatsApp</button>`:''}${l.maps_url?`<a class="secondary" target="_blank" href="${esc(l.maps_url)}">Maps</a>`:''}</div><div class="call-box"><div class="toolbar"><div><h3>Call / Contact Log</h3><span class="muted">Record what happened after every call.</span></div></div><div class="outcomes" id="outcomes">${['Connected','No Answer','Interested','Follow-up','Not Interested','Converted'].map(o=>`<button type="button" class="outcome" data-outcome="${o}" onclick="chooseOutcome('${o}')">${o}</button>`).join('')}</div><div class="grid2"><div><label>Call date</label><input id="callDate" type="datetime-local" value="${localInput(new Date().toISOString())}"></div><div><label>Outcome</label><input id="callOutcome" placeholder="Choose above or type outcome"></div></div><label style="margin-top:10px">Call notes</label><textarea id="callNotes" placeholder="What did the lead say? What is the next action?"></textarea><div class="actions"><button class="primary" onclick="saveCall(${id})">Save Call</button></div><div class="toolbar" style="margin-top:14px"><h3>Call History</h3><span class="muted push" id="callCount"></span></div><div id="callHistory" class="timeline">Loading…</div></div>`;$('detailModal').classList.remove('hidden');loadCalls(id)}
 function chooseOutcome(o){$('callOutcome').value=o;document.querySelectorAll('.outcome').forEach(x=>x.classList.toggle('active',x.dataset.outcome===o))}
-
 function closeDetail(){$('detailModal').classList.add('hidden')}
-
 async function saveCRM(id){try{const body={status:$('dStatus').value,notes:$('dNotes').value.trim(),next_followup_date:$('dFollow').value?new Date($('dFollow').value).toISOString():null};await api(`/api/leads/${id}`,{method:'PATCH',body:JSON.stringify(body)});if(user?.role==='Admin'&&$('dAssigned'))await api(`/api/leads/${id}/assignment`,{method:'PATCH',body:JSON.stringify({assigned_to:$('dAssigned').value?Number($('dAssigned').value):null})});toast('Lead saved');await Promise.all([loadLeads(),refreshDashboard()]);openDetail(id)}catch(e){toast(e.message,true)}}
-
 async function saveCall(id){const outcome=$('callOutcome').value.trim(),notes=$('callNotes').value.trim();if(!outcome)return toast('Choose a call outcome.',true);try{await api(`/api/leads/${id}/calls`,{method:'POST',body:JSON.stringify({call_date:$('callDate').value?new Date($('callDate').value).toISOString():null,call_outcome:outcome,notes})});toast('Call logged');$('callNotes').value='';$('callOutcome').value='';document.querySelectorAll('.outcome').forEach(x=>x.classList.remove('active'));await loadCalls(id);await Promise.all([loadLeads(),refreshDashboard()])}catch(e){toast(e.message,true)}}
-
 async function loadCalls(id){try{const d=await api(`/api/leads/${id}/calls`);const calls=d.calls||[];$('callCount').textContent=`${calls.length} call(s)`;$('callHistory').innerHTML=calls.map(c=>`<div class="call-item"><b>${esc(c.call_outcome)}</b><div class="call-meta">${fmt(c.call_date)} · ${esc(c.called_by_name||c.called_by_email||'Team member')}</div>${c.notes?`<p>${esc(c.notes)}</p>`:''}</div>`).join('')||'<div class="muted">No calls logged yet.</div>'}catch(e){$('callHistory').textContent=e.message}}
-
 async function openWhatsApp(id){try{const d=await api(`/api/leads/${id}/whatsapp`,{method:'POST'});window.open(d.whatsapp_url,'_blank','noopener');}catch(e){toast(e.message,true)}}
-
 async function bulkStatus(){const ids=selected(),status=$('bulkStatus').value;if(!ids.length)return toast('Select leads first.',true);if(!status)return toast('Choose a status.',true);try{await api('/api/leads/bulk',{method:'POST',body:JSON.stringify({lead_ids:ids,action:'status',status})});toast('Status updated');await Promise.all([loadLeads(),refreshDashboard()])}catch(e){toast(e.message,true)}}
-
 async function bulkAssign(){if(user?.role!=='Admin')return toast('Admin only.',true);const ids=selected(),assigned=$('bulkAssign').value;if(!ids.length)return toast('Select leads first.',true);if(!assigned)return toast('Choose a team member.',true);try{await api('/api/leads/bulk',{method:'POST',body:JSON.stringify({lead_ids:ids,action:'assign',assigned_to:Number(assigned)})});toast('Leads assigned');await Promise.all([loadLeads(),refreshDashboard()])}catch(e){toast(e.message,true)}}
-
 async function bulkDelete(){const ids=selected();if(!ids.length)return toast('Select leads first.',true);if(!confirm(`Delete ${ids.length} lead(s)?`))return;try{await api('/api/leads/bulk',{method:'POST',body:JSON.stringify({lead_ids:ids,action:'delete'})});toast('Leads deleted');await Promise.all([loadLeads(),refreshDashboard()])}catch(e){toast(e.message,true)}}
-
 function exportFiltered(kind){const ids=selected();let query;if(ids.length){const p=new URLSearchParams();p.set('lead_ids',ids.join(','));query='?'+p.toString()}else{query=qFilters()}download(`/api/export-${kind}${query}`,`leads.${kind==='excel'?'xlsx':'csv'}`)}
-
 function downloadLeadExcel(id){download(`/api/export-excel?lead_ids=${encodeURIComponent(id)}`,`lead_${id}.xlsx`)}
-
 async function download(path,name){try{const r=await fetch(API+path,{headers:{Authorization:'Bearer '+token}});if(!r.ok){let d={};try{d=await r.json()}catch{}throw Error(d.detail||'Export failed')}const b=await r.blob();if(!b.size)throw Error('Export returned an empty file');const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)}catch(e){toast(e.message,true)}}
-
 async function refreshDashboard(){if(!token)return;try{const [f,summary]=await Promise.all([api('/api/dashboard/followups'),api('/api/dashboard/summary')]);$('stSeen').textContent=summary.total_leads||0;$('stCalls').textContent=summary.total_calls||0;$('stFollowups').textContent=summary.today_followups||0;$('stSuccess').textContent=summary.success_leads||0;$('followSummary').textContent=`${f.today_count||0} today · ${f.missed_count||0} missed`;$('todayList').innerHTML=(f.today||[]).map(x=>followCard(x,false)).join('')||'<span class="muted">No follow-ups today.</span>';$('missedList').innerHTML=(f.missed||[]).map(x=>followCard(x,true)).join('')||'<span class="muted">No missed follow-ups.</span>';$('missedAlert').classList.toggle('hidden',!(f.missed_count>0));$('missedAlert').textContent=f.missed_count?`${f.missed_count} missed follow-up(s) need attention.`:'';await loadPerformance()}catch(e){toast(e.message,true)}}
-
-async function loadPerformance(){try{let from='',to='';const period=$('perfPeriod')?.value||'all';const now=new Date();if(period==='today'){from=now.toISOString().slice(0,10);to=from}else if(period==='month'){from=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10);to=now.toISOString().slice(0,10)}const qs=new URLSearchParams();if(from)qs.set('date_from',from);if(to)qs.set('date_to',to);const d=await api('/api/dashboard/agent-performance'+(qs.toString()?'?'+qs:''));const arr=d.performance||[];$('performanceBody').innerHTML=arr.map(a=>{const score=Number(a.score||0);const ring=a.role==='Admin'?'var(--blue)':score>=80?'var(--green)':score>=55?'var(--amber)':'var(--red)';return `<tr><td><div class="rank-ring" style="--score:${score};--ring-color:${ring}"><span>${a.role==='Admin'?'ADMIN':'#'+a.rank}</span></div></td><td><div class="perf-name"><div><b>${esc(a.name||a.email||'Agent')}</b><br><span class="muted">${esc(a.role||'Agent')}</span></div></div></td><td><b>${a.calls||0}</b></td><td>${a.connected||0}</td><td>${a.followups||0}</td><td class="success-num">${a.success||0}</td><td class="failure-num">${a.failure||0}</td><td><b>${Number(a.conversion_rate||0).toFixed(1)}%</b><br><div class="perf-bar" style="--p:${Math.min(100,Number(a.conversion_rate||0))}%;--ring-color:${ring}"><i></i></div></td><td><b>${a.role==='Admin'?'Admin':score.toFixed(1)+'%'}</b><br><span class="muted">${a.role==='Admin'?'Account':score>=80?'Excellent':score>=55?'Good':'Needs focus'}</span></td></tr>`}).join('')||'<tr><td colspan="9" class="empty">No performance activity yet.</td></tr>'}catch(e){$('performanceBody').innerHTML='<tr><td colspan="9" class="empty">Unable to load performance: '+esc(e.message)+'</td></tr>'}}
-
+async function loadPerformance(){try{let from='',to='';const period=$('perfPeriod')?.value||'all';const now=new Date();if(period==='today'){from=now.toISOString().slice(0,10);to=from}else if(period==='month'){from=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10);to=now.toISOString().slice(0,10)}const qs=new URLSearchParams();if(from)qs.set('date_from',from);if(to)qs.set('date_to',to);const d=await api('/api/dashboard/agent-performance'+(qs.toString()?'?'+qs:''));const arr=d.performance||[];$('performanceBody').innerHTML=arr.map(a=>{const score=Number(a.score||0);const ring=a.role==='Admin'?'var(--green)':score>=80?'var(--lime)':score>=55?'var(--amber)':'var(--red)';return `<tr><td><div class="rank-ring" style="--score:${score};--ring-color:${ring}"><span>${a.role==='Admin'?'ADMIN':'#'+a.rank}</span></div></td><td><div class="perf-name"><div><b>${esc(a.name||a.email||'Agent')}</b><br><span class="muted">${esc(a.role||'Agent')}</span></div></div></td><td><b>${a.calls||0}</b></td><td>${a.connected||0}</td><td>${a.followups||0}</td><td class="success-num">${a.success||0}</td><td class="failure-num">${a.failure||0}</td><td><b>${Number(a.conversion_rate||0).toFixed(1)}%</b><br><div class="perf-bar" style="--p:${Math.min(100,Number(a.conversion_rate||0))}%;--ring-color:${ring}"><i></i></div></td><td><b>${a.role==='Admin'?'Admin':score.toFixed(1)+'%'}</b><br><span class="muted">${a.role==='Admin'?'Account':score>=80?'Excellent':score>=55?'Good':'Needs focus'}</span></td></tr>`}).join('')||'<tr><td colspan="9" class="empty">No performance activity yet.</td></tr>'}catch(e){$('performanceBody').innerHTML='<tr><td colspan="9" class="empty">Unable to load performance: '+esc(e.message)+'</td></tr>'}}
 function followCard(x,missed){return `<div class="follow ${missed?'missed':''}"><b>${esc(x.name)}</b><br><span class="muted">${fmt(x.next_followup_date)} · ${esc(member(x.assigned_to))}</span><div class="actions"><button class="secondary" onclick="openDetail(${x.id})">Open</button></div></div>`}
-
 async function addResultToGroup(id){const sel=$('rg'+id);const gid=sel?.value;if(!gid)return toast('Select a group or use + Group.',true);try{const d=await api(`/api/groups/${gid}/leads`,{method:'POST',body:JSON.stringify({lead_ids:[id]})});toast(d.added?'Added to group':'Already in group');sel.value=''}catch(e){toast(e.message,true)}}
-
 async function createGroupFromSearch(leadId){const name=prompt('New group name:');if(!name||!name.trim())return;try{const g=await api('/api/groups',{method:'POST',body:JSON.stringify({name:name.trim()})});await loadGroups();const gid=g.id||g.group?.id;const groupId=gid||groups.find(x=>x.name===name.trim())?.id;if(!groupId)return toast('Group created. Add the lead from Groups.',true);await api(`/api/groups/${groupId}/leads`,{method:'POST',body:JSON.stringify({lead_ids:[leadId]})});toast('Group created and lead added')}catch(e){toast(e.message,true)}}
-
 async function loadGroups(){try{const d=await api('/api/groups');groups=d.groups||[];$('groupCards').innerHTML=groups.map(g=>`<div class="stat"><b style="font-size:16px">${esc(g.name)}</b><span>Created ${dateOnly(g.created_at)}</span><div class="actions"><button class="secondary" onclick="openGroup(${g.id})">Open group</button><button class="secondary" onclick="exportGroupExcel(${g.id})">Excel</button></div></div>`).join('')||'<div class="card empty">No groups yet.</div>'}catch(e){toast(e.message,true)}}
-
 async function createGroup(){const name=$('groupName').value.trim();if(!name)return toast('Enter a group name.',true);try{await api('/api/groups',{method:'POST',body:JSON.stringify({name})});$('groupName').value='';await loadGroups();toast('Group created')}catch(e){toast(e.message,true)}}
-
 async function openGroup(id){const g=groups.find(x=>x.id===id);activeGroupId=id;try{const d=await api(`/api/groups/${id}/leads`);$('groupTitle').textContent=g?.name||'Group';$('groupBody').innerHTML=(d.leads||[]).map(l=>`<tr><td><b>${esc(l.name)}</b></td><td>${esc(l.phone||'—')}</td><td><span class="badge ${statusClass(l.status)}">${esc(l.status||'New')}</span></td><td><span class="badge ${priority(l.lead_type)}">${esc(l.lead_type||'Cold Lead')}</span></td><td><button class="danger" onclick="removeGroupLead(${id},${l.id})">Remove</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">No leads in this group.</td></tr>';$('groupView').classList.remove('hidden')}catch(e){toast(e.message,true)}}
-
 async function removeGroupLead(gid,lid){try{await api(`/api/groups/${gid}/leads/${lid}`,{method:'DELETE'});await openGroup(gid);toast('Removed')}catch(e){toast(e.message,true)}}function closeGroup(){activeGroupId=null;$('groupView').classList.add('hidden')}
-
 async function exportGroupExcel(id){if(!id)return toast('Open a group first.',true);download(`/api/groups/${id}/export-excel`,`${(groups.find(g=>g.id===id)?.name||'group').replace(/[^a-z0-9_-]+/gi,'_')}.xlsx`)}
-
-async function runAIResearch(){const query=$('aiQuery').value.trim(),city=$('aiCity').value.trim();if(query.length<2)return toast('Enter a business or research query.',true);$('aiStatus').innerHTML='<span class="spinner"></span> Researching business evidence…';$('aiResearchResult').classList.add('hidden');try{const d=await api('/api/ai-research',{method:'POST',body:JSON.stringify({query,city:city||null})});const r=d.research||{};const confidence=(r.research_confidence||'medium').toLowerCase();$('aiResearchResult').innerHTML=`<div class="toolbar ai-research-head"><div><h2>${esc(r.business_snapshot||query)}</h2><span class="muted">Evidence-based research · facts first, hypotheses second</span></div><span class="ai-confidence ${esc(confidence)}">${esc(confidence)} confidence · ${d.sources?.length||0} evidence items</span></div><div class="ai-research-grid"><section class="info ai-evidence"><b>What They Have</b><div class="ai-section-note">Verified business facts only</div>${factsHtml(r.what_they_have)}</section><section class="info ai-opportunity"><b>What They May Need</b><div class="ai-section-note">Business-specific hypotheses to validate</div>${opportunitiesHtml(r.what_they_may_need)}</section><section class="info ai-offer"><b>What We Can Offer</b><div class="ai-section-note">Potential solution areas — not assumed company capabilities</div>${offersHtml(r.what_we_can_offer)}</section><section class="info ai-approach"><b>How to Approach</b><p>${esc(r.how_to_approach||'—')}</p></section><section class="info ai-next"><b>Next Action</b><p>${esc(r.next_action||'—')}</p></section><section class="info ai-pitch"><b>Opening Pitch</b><p>${esc(r.opening_pitch||'—')}</p></section></div>`;$('aiResearchResult').classList.remove('hidden');$('aiStatus').textContent=`Research completed · ${d.sources?.length||0} evidence item(s) collected.`}catch(e){$('aiStatus').textContent='';toast(e.message,true)} }
-
+async function runAIResearch(){const query=$('aiQuery').value.trim(),city=$('aiCity').value.trim();if(query.length<2)return toast('Enter a business or research query.',true);$('aiStatus').innerHTML='<span class="spinner"></span> Researching business evidence…';$('aiResearchResult').classList.add('hidden');try{const d=await api('/api/ai-research',{method:'POST',body:JSON.stringify({query,city:city||null})});const r=d.research||{};const confidence=(r.research_confidence||'medium').toLowerCase();$('aiResearchResult').innerHTML=`<div class="toolbar ai-research-head"><div><h2>${esc(r.business_snapshot||query)}</h2><span class="muted">Evidence-based research · facts first, hypotheses second</span></div><span class="ai-confidence ${esc(confidence)}">${esc(confidence)} confidence · ${d.sources?.length||0} evidence items</span></div><div class="ai-research-grid"><section class="info ai-evidence"><b>What They Have</b><div class="ai-section-note">Verified business facts only</div>${factsHtml(r.what_they_have)}</section><section class="info ai-opportunity"><b>What They May Need</b><div class="ai-section-note">Business-specific hypotheses to validate</div>${opportunitiesHtml(r.what_they_may_need)}</section><section class="info ai-offer"><b>What We Can Offer</b><div class="ai-section-note">Potential solution areas — not assumed company capabilities</div>${offersHtml(r.what_we_can_offer)}</section><section class="info ai-approach"><b>How to Approach</b><p>${esc(r.how_to_approach||'—')}</p></section><section class="info ai-next"><b>Next Action</b><p>${esc(r.next_action||'—')}</p></section><section class="info ai-pitch"><b>Opening Pitch</b><p>${esc(r.opening_pitch||'—')}</p></section><section class="info ai-social"><b>Public Social Profiles</b><div class="ai-section-note">Public links surfaced by available evidence; not an exhaustive account audit.</div>${socialLinksHtml(r.social_profiles||{})}</section></div>`;$('aiResearchResult').classList.remove('hidden');$('aiStatus').textContent=`Research completed · ${d.sources?.length||0} evidence item(s) collected.`}catch(e){$('aiStatus').textContent='';toast(e.message,true)} }
 function factsHtml(v){const a=Array.isArray(v)?v:(v?[v]:[]);if(!a.length)return '<div class="ai-empty">No business-specific facts were verified from available public evidence.</div>';return '<div class="ai-facts">'+a.map(x=>{const fact=typeof x==='string'?x:(x?.fact||'');const source=typeof x==='string'?'':(x?.source||'');return `<div class="ai-fact"><div>${esc(String(fact))}</div>${source?`<span>${esc(String(source))}</span>`:''}</div>`}).join('')+'</div>'}
 function opportunitiesHtml(v){const a=Array.isArray(v)?v:(v?[v]:[]);if(!a.length)return '<div class="ai-empty">No strong business-specific opportunity was established yet. Validate needs directly.</div>';return '<div class="ai-opportunities">'+a.map(x=>{if(typeof x==='string')return `<div class="ai-opportunity-card"><b>${esc(x)}</b><span>Hypothesis — validate with the business.</span></div>`;return `<div class="ai-opportunity-card"><b>${esc(x?.opportunity||'Potential opportunity')}</b>${x?.evidence?`<span><strong>Evidence:</strong> ${esc(x.evidence)}</span>`:''}${x?.why?`<span><strong>Why:</strong> ${esc(x.why)}</span>`:''}${x?.discovery_question?`<span><strong>Ask:</strong> “${esc(x.discovery_question)}”</span>`:''}</div>`}).join('')+'</div>'}
 function offersHtml(v){const a=Array.isArray(v)?v:(v?[v]:[]);if(!a.length)return '<div class="ai-empty">No solution area was confidently mapped yet.</div>';return '<div class="ai-offers">'+a.map(x=>{if(typeof x==='string')return `<div class="ai-offer-card">${esc(x)}</div>`;return `<div class="ai-offer-card"><b>${esc(x?.solution_area||'Potential solution area')}</b>${x?.linked_opportunity?`<span>For: ${esc(x.linked_opportunity)}</span>`:''}</div>`}).join('')+'</div>'}
-
-
 async function loadHistory(){try{const d=await api('/api/search-history');$('historyBody').innerHTML=(d.history||[]).map(h=>`<tr><td>${fmt(h.created_at)}</td><td>${esc(h.city)}</td><td>${esc(h.category||h.keyword||'')}</td><td>${h.result_count??0}</td><td>${esc((h.sources_used||[]).join(', '))}</td><td><button class="secondary" onclick="rerun(${h.id})">Rerun</button></td></tr>`).join('')||'<tr><td colspan="6" class="empty">No search history.</td></tr>'}catch(e){toast(e.message,true)}}
-
 async function rerun(id){go('search');$('searchStatus').innerHTML='<span class="spinner"></span> Re-running…';try{const d=await api(`/api/search-history/${id}/rerun`,{method:'POST'});results=d.leads||[];renderResults();$('searchStatus').textContent=`Found ${d.count||0} new lead(s).`;await Promise.all([loadLeads(),refreshDashboard()])}catch(e){toast(e.message,true)}}
-
-
 function chatInitials(u){const n=(u?.name||u?.email||"U").trim();return n.split(/\s+/).slice(0,2).map(x=>x[0]).join("").toUpperCase().slice(0,2)||"U"}
 function chatUserLabel(u){return (u?.name||u?.email||"Team member").trim()}
 function chatSearchValue(u){return `${chatUserLabel(u)} ${u?.email||""} ${u?.role||""}`.toLowerCase()}
 function chatConversationForUser(id){return chatConversations.find(c=>Number(c.other_user?.id)===Number(id))}
 function chatTime(v){if(!v)return "";try{return new Date(v).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}catch{return ""}}
 function chatDayLabel(v){if(!v)return "";try{const d=new Date(v),n=new Date();const y=new Date();y.setDate(n.getDate()-1);if(d.toDateString()===n.toDateString())return "Today";if(d.toDateString()===y.toDateString())return "Yesterday";return d.toLocaleDateString([], {day:"numeric",month:"short",year:d.getFullYear()===n.getFullYear()?undefined:"numeric"})}catch{return ""}}
-
 function setChatTab(tab){chatTab=tab==="team"?"team":"chats";$("chatTabChats").classList.toggle("active",chatTab==="chats");$("chatTabTeam").classList.toggle("active",chatTab==="team");renderChatDirectory();}
-
 function renderChatDirectory(){
   const box=$("chatList"),q=$("chatUserSearch").value.trim().toLowerCase();
   if(chatTab==="team"){
@@ -663,7 +807,6 @@ function renderChatDirectory(){
     </div>`;
   }).join("")||'<div class="chat-empty">No private chats yet.<br>Open <b>Team</b> to start one.</div>';
 }
-
 function renderChatHeader(u,mode="private"){
   if(mode==="team"){
     $("chatHeadAvatar").textContent="👥";
@@ -677,7 +820,6 @@ function renderChatHeader(u,mode="private"){
   }
   $("chatInput").disabled=false;$("chatSendBtn").disabled=false;$("chatRefreshBtn").disabled=false;
 }
-
 async function loadChat(){
   if(!token)return;
   try{
@@ -689,7 +831,6 @@ async function loadChat(){
     else if(activeChatMode==='team'){renderChatHeader(null,'team');await loadTeamRoomMessages(true);}
   }catch(e){toast(e.message,true)}
 }
-
 async function loadChatUnreadCount(silent=false){
   if(!token)return;
   try{const d=await api("/api/chat/unread-count"),n=Number(d.unread_count||0);window.__privateChatUnread=n;const total=n+Number(window.__teamUnread||0),badge=$("chatNavCount");if(badge){badge.textContent=total>99?"99+":total;badge.classList.toggle("hidden",total===0)}}catch(e){if(!silent)toast(e.message,true)}
@@ -698,11 +839,9 @@ async function loadTeamRoomUnreadCount(silent=false){
   if(!token)return;
   try{const d=await api("/api/chat/team-room/unread-count");window.__teamUnread=Number(d.unread_count||0);renderChatDirectory();const badge=$("chatNavCount");if(badge){const privateUnread=Number(window.__privateChatUnread||0),total=privateUnread+window.__teamUnread;badge.textContent=total>99?"99+":total;badge.classList.toggle("hidden",total===0)}}catch(e){if(!silent)toast(e.message,true)}
 }
-
 async function openTeamRoom(){
   activeChatMode='team';activeConversationId=null;setChatTab('team');renderChatHeader(null,'team');$("chatLayout").classList.add("mobile-chat-open");await loadTeamRoomMessages(false);$("chatInput").focus();
 }
-
 async function openChatWithUser(userId){
   try{
     const c=chatConversationForUser(userId);
@@ -713,19 +852,16 @@ async function openChatWithUser(userId){
     await loadChat();await openChatConversation(activeConversationId);$("chatInput").focus();
   }catch(e){toast(e.message,true)}
 }
-
 async function openChatConversation(id){
   activeChatMode='private';activeConversationId=Number(id);
   const c=chatConversations.find(x=>Number(x.id)===activeConversationId);if(!c)return;
   renderChatDirectory();renderChatHeader(c.other_user,'private');$("chatLayout").classList.add("mobile-chat-open");await loadChatMessages(activeConversationId,false);
 }
-
 function groupChatMessages(messages){
   const out=[];let lastDay="";
   for(const m of messages){const day=chatDayLabel(m.created_at);if(day!==lastDay){out.push({type:"day",label:day});lastDay=day}out.push({type:"message",message:m});}
   return out;
 }
-
 function renderMessageList(messages,teamMode=false){
   const body=$("chatMessages");
   body.innerHTML=groupChatMessages(messages).map(item=>{
@@ -737,15 +873,12 @@ function renderMessageList(messages,teamMode=false){
   }).join("")||'<div class="chat-empty">No messages yet.<br>Say hello 👋</div>';
   body.scrollTop=body.scrollHeight;
 }
-
 function replyChatMessage(e,id,teamMode){e?.stopPropagation();const list=teamMode?window.__teamMessages||[]:window.__privateMessages||[];const m=list.find(x=>Number(x.id)===Number(id));chatReplyTo={id:Number(id),teamMode:!!teamMode};const input=$("chatInput");input.focus();input.placeholder="Reply to message…";$("chatReplyText").textContent=(m?.body||"Original message").slice(0,180);$("chatReplyBar").classList.remove("hidden");}
 function cancelChatReply(){chatReplyTo=null;$("chatReplyBar").classList.add("hidden");$("chatReplyText").textContent="";$("chatInput").placeholder="Write a message…  Enter to send · Shift+Enter for new line";}
-
 async function copyChatMessage(e,id,body){e?.stopPropagation();try{await navigator.clipboard.writeText(body||'');toast('Message copied')}catch{toast('Copy failed',true)}}
 async function editChatMessage(e,id,body,teamMode){e?.stopPropagation();const next=prompt('Edit message:',body||'');if(next===null)return;if(!next.trim())return toast('Message cannot be empty.',true);try{const url=teamMode?`/api/chat/team-room/messages/${id}`:`/api/chat/conversations/${activeConversationId}/messages/${id}`;await api(url,{method:'PATCH',body:JSON.stringify({body:next.trim()})});teamMode?await loadTeamRoomMessages(false):await loadChatMessages(activeConversationId,false)}catch(err){toast(err.message,true)}}
 async function deleteChatMessage(e,id,teamMode){e?.stopPropagation();if(!confirm('Delete this message?'))return;try{const url=teamMode?`/api/chat/team-room/messages/${id}`:`/api/chat/conversations/${activeConversationId}/messages/${id}`;await api(url,{method:'DELETE'});teamMode?await loadTeamRoomMessages(false):await loadChatMessages(activeConversationId,false)}catch(err){toast(err.message,true)}}
 async function reactChatMessage(e,id,teamMode,reaction){e?.stopPropagation();try{const url=teamMode?`/api/chat/team-room/messages/${id}/reactions`:`/api/chat/conversations/${activeConversationId}/messages/${id}/reactions`;await api(url,{method:'POST',body:JSON.stringify({reaction})});toast('Reaction added')}catch(err){toast(err.message,true)}}
-
 async function loadChatMessages(id,silent=false,fast=false){
   if(!id)return;
   try{
@@ -760,7 +893,6 @@ async function loadChatMessages(id,silent=false,fast=false){
     if(!fast)loadChatUnreadCount(true);
   }catch(e){if(!silent)toast(e.message,true)}
 }
-
 async function loadTeamRoomMessages(silent=false,fast=false){
   try{
     const d=await api(`/api/chat/team-room/messages?limit=${fast?50:200}`);
@@ -774,10 +906,8 @@ async function loadTeamRoomMessages(silent=false,fast=false){
     if(!fast)renderChatDirectory();
   }catch(e){if(!silent)toast(e.message,true)}
 }
-
 async function refreshActiveChat(){if(activeChatMode==='team')await loadTeamRoomMessages(false);else if(activeConversationId)await loadChatMessages(activeConversationId,false);else await loadChat()}
 function chatInputKeydown(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChatMessage()}}
-
 async function sendChatMessage(){
   if(chatSending)return;
   const input=$("chatInput"),body=input.value.trim();if(!body)return;
@@ -794,43 +924,23 @@ async function sendChatMessage(){
   }catch(e){toast(e.message,true)}
   finally{chatSending=false;$("chatSendBtn").disabled=false}
 }
-
 function closeMobileChat(){$("chatLayout").classList.remove("mobile-chat-open");}
-
 function notificationTime(v){try{return fmt(v)}catch{return String(v||'')}}
-
 async function loadNotifications(silent=false){if(!token)return;try{const d=await api('/api/notifications?limit=100');const items=d.notifications||[];const unread=Number(d.unread_count||0);$('notificationCount').textContent=unread>99?'99+':unread;$('notificationCount').classList.toggle('hidden',unread===0);$('notificationSummary').textContent=`${unread} unread`;$('notificationList').innerHTML=items.map(n=>`<div class="notification-item ${n.is_read?'':'unread'}" onclick="openNotification(${n.id},${n.lead_id||'null'})"><button class="notification-delete" onclick="deleteNotification(event,${n.id})">Delete</button><div class="notification-title">${esc(n.title)}</div><div class="notification-message">${esc(n.message)}</div><div class="notification-time">${notificationTime(n.created_at)}${n.is_read?' · Read':' · New'}</div></div>`).join('')||'<div class="empty" style="padding:22px 8px">No notifications yet.</div>'}catch(e){if(!silent)toast(e.message,true)}}
-
 function toggleNotifications(e){e?.stopPropagation();$('notificationPanel').classList.toggle('hidden');if(!$('notificationPanel').classList.contains('hidden'))loadNotifications(true)}
-
 async function openNotification(id,leadId){try{await api(`/api/notifications/${id}/read`,{method:'POST'});if(leadId)openDetail(Number(leadId));await loadNotifications(true)}catch(e){toast(e.message,true)}}
-
 async function deleteNotification(e,id){e.stopPropagation();try{await api(`/api/notifications/${id}`,{method:'DELETE'});await loadNotifications(true)}catch(err){toast(err.message,true)}}
-
 document.addEventListener('click',e=>{const wrap=document.querySelector('.notification-wrap');if(wrap&&!wrap.contains(e.target))$('notificationPanel')?.classList.add('hidden')});
-
 function startAICall(){if(user?.role!=="Admin")return toast("Admin only.",true);const lead=$('aiCallLeadPhone').value.trim(),caller=$('aiCallCallerPhone').value.trim(),rec=$('aiCallRecommendation').value.trim();if(!lead||!caller||!rec)return toast('Enter lead number, caller number and AI recommendation.',true);$('aiCallStatus').textContent='Call inputs are ready. Actual PSTN AI calling requires a telephony bridge and realtime voice service; no fake call will be started.';toast('AI Call Agent is ready for telephony configuration.')}
-
 async function loadAdmin(){if(user?.role!=='Admin')return;try{const [tm,al,gs]=await Promise.all([api('/api/team-members'),api('/api/activity-log?limit=100'),api('/api/google-sheets/status')]);team=tm.team_members||[];fillTeam();$('teamBody').innerHTML=team.map(m=>{const disabled=m.active===false,pending=m.approval_status==='Pending';return `<tr><td>${esc(m.name||'—')}</td><td>${esc(m.email||m.phone||'—')}</td><td><span class="badge">${esc(m.role)}</span></td><td><span class="badge ${pending?'sfollow':disabled?'cold':'sclosed'}">${pending?'Pending Approval':disabled?'Disabled':'Active'}</span></td><td>${pending?`<button class="primary" onclick="approveAgent(${m.id})">Approve</button> `:''}<button class="secondary" onclick="editAgent(${m.id})">Edit</button> <button class="secondary" onclick="resetAgentPassword(${m.id})">Reset Password</button> <button class="${disabled?'primary':'danger'}" onclick="toggleAgent(${m.id},${disabled})">${disabled?'Enable':'Disable'}</button></td></tr>`}).join('')||'<tr><td colspan="5" class="empty">No team members.</td></tr>';$('activityBody').innerHTML=(al.activity||[]).map(a=>`<tr><td>${fmt(a.created_at)}</td><td>${esc(a.user_name||a.user_email||'—')}</td><td>${esc(a.lead_name||'—')}</td><td>${esc(a.action)}</td><td>${esc(JSON.stringify(a.details||{}))}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">No activity yet.</td></tr>';$('sheetStatus').textContent=gs.configured?'Configured':'Not configured (optional)'}catch(e){toast(e.message,true)}}
-
 async function approveAgent(id){try{await api(`/api/admin/agents/${id}/approve`,{method:"POST"});toast("Agent approved");await loadAdmin()}catch(e){toast(e.message,true)}}
-
 async function createAgent(){const name=prompt('Agent name:');if(name===null)return;const email=prompt('Agent email:');if(!email)return;const password=prompt('Temporary password (minimum 6 characters):');if(!password)return;try{await api('/api/admin/agents',{method:'POST',body:JSON.stringify({name:name.trim(),email:email.trim(),password})});toast('Agent account created');await loadAdmin()}catch(e){toast(e.message,true)}}
-
 async function editAgent(id){const m=team.find(x=>Number(x.id)===Number(id));if(!m)return;const name=prompt('Agent name:',m.name||'');if(name===null)return;const email=prompt('Agent email:',m.email||'');if(email===null)return;try{await api(`/api/admin/agents/${id}`,{method:'PATCH',body:JSON.stringify({name,email,active:m.active!==false})});toast('Agent updated');await loadAdmin()}catch(e){toast(e.message,true)}}
-
 async function resetAgentPassword(id){const password=prompt('New password (minimum 6 characters):');if(!password)return;try{await api(`/api/admin/agents/${id}/reset-password`,{method:'POST',body:JSON.stringify({new_password:password})});toast('Password reset successfully')}catch(e){toast(e.message,true)}}
-
 async function toggleAgent(id,enable){try{await api(`/api/admin/agents/${id}`,{method:'PATCH',body:JSON.stringify({active:enable})});toast(enable?'Agent enabled':'Agent disabled');await loadAdmin()}catch(e){toast(e.message,true)}}
-
 async function saveRole(id){const role=$(`role-${id}`)?.value;const qs=new URLSearchParams();qs.set('role',role);try{await api(`/api/team-members/${id}/role?${qs.toString()}`,{method:'PATCH'});toast('Role updated');await loadAdmin()}catch(e){toast(e.message,true)}}
-
 async function syncSheets(){try{const d=await api('/api/google-sheets/sync',{method:'POST'});toast(d.message||'Google Sheets synced')}catch(e){toast(e.message,true)}}
-
 (async()=>{if(token){await startApp()}})();
-
-</script></body></html>
-
-
-
-MS
+</script>
+</body>
+</html>
