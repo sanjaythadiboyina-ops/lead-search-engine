@@ -388,7 +388,8 @@ def init_db():
 
                 phone TEXT, website TEXT, email TEXT,
 
-                instagram TEXT, facebook TEXT, twitter TEXT,
+                instagram TEXT, facebook TEXT, twitter TEXT, linkedin TEXT, youtube TEXT, tiktok TEXT,
+                social_evidence JSONB DEFAULT '[]'::jsonb, social_status TEXT,
 
                 category TEXT, rating DOUBLE PRECISION, reviews INTEGER,
 
@@ -434,6 +435,11 @@ def init_db():
                 "facebook": "ALTER TABLE leads ADD COLUMN facebook TEXT",
 
                 "twitter": "ALTER TABLE leads ADD COLUMN twitter TEXT",
+                "linkedin": "ALTER TABLE leads ADD COLUMN linkedin TEXT",
+                "youtube": "ALTER TABLE leads ADD COLUMN youtube TEXT",
+                "tiktok": "ALTER TABLE leads ADD COLUMN tiktok TEXT",
+                "social_evidence": "ALTER TABLE leads ADD COLUMN social_evidence JSONB DEFAULT '[]'::jsonb",
+                "social_status": "ALTER TABLE leads ADD COLUMN social_status TEXT",
 
                 "maps_url": "ALTER TABLE leads ADD COLUMN maps_url TEXT",
 
@@ -1084,7 +1090,8 @@ def serpapi_get(params: dict, timeout: int = 30):
 
     query = dict(params)
 
-    query.update({"api_key": SERPAPI_API_KEY, "engine": "google_maps"})
+    query.update({"api_key": SERPAPI_API_KEY})
+    query.setdefault("engine", "google_maps")
 
     try:
 
@@ -1789,6 +1796,9 @@ SOCIAL_RE = {
     "facebook": re.compile(r"https?://(?:www\.)?facebook\.com/[^\"'\s<>]+", re.I),
 
     "twitter": re.compile(r"https?://(?:www\.)?(?:twitter\.com|x\.com)/[^\"'\s<>]+", re.I),
+    "linkedin": re.compile(r"https?://(?:www\.)?linkedin\.com/(?:company|showcase)/[^\"'\s<>]+", re.I),
+    "youtube": re.compile(r"https?://(?:www\.)?(?:youtube\.com|youtu\.be)/[^\"'\s<>]+", re.I),
+    "tiktok": re.compile(r"https?://(?:www\.)?tiktok\.com/@?[^\"'\s<>]+", re.I),
 
 }
 
@@ -2032,6 +2042,20 @@ def search(req: SearchRequest, current_user: dict = Depends(get_current_user)):
         with db_conn() as conn:
             with conn.cursor() as cur:
                 for lead in leads:
+                    for social_key in ("instagram", "facebook", "twitter", "linkedin", "youtube", "tiktok"):
+                        lead.setdefault(social_key, None)
+                    lead.setdefault("social_evidence", [])
+                    lead.setdefault("social_status", "not_checked")
+                    if req.enrich:
+                        social = discover_public_social_profiles(lead)
+                        for social_key in ("linkedin", "instagram", "facebook", "twitter", "youtube", "tiktok"):
+                            if social.get(social_key):
+                                lead[social_key] = social[social_key]
+                        lead["social_status"] = social.get("social_status")
+                        lead["social_evidence"] = social.get("social_evidence") or []
+                    else:
+                        lead.setdefault("social_status", "not_checked")
+                        lead.setdefault("social_evidence", [])
                     lead.update(gemini_analysis(lead))
                     # Smart DB merge: provider IDs are strongest; phone/domain/name+address
                     # are used as cross-provider fallback signals. Existing status/notes survive.
@@ -2069,6 +2093,8 @@ def search(req: SearchRequest, current_user: dict = Depends(get_current_user)):
                             "city": lead.get("city"), "region": lead.get("region"), "country": lead.get("country"),
                             "latitude": lead.get("latitude"), "longitude": lead.get("longitude"), "email": lead.get("email"),
                             "instagram": lead.get("instagram"), "facebook": lead.get("facebook"), "twitter": lead.get("twitter"),
+                            "linkedin": lead.get("linkedin"), "youtube": lead.get("youtube"), "tiktok": lead.get("tiktok"),
+                            "social_evidence": json.dumps(lead.get("social_evidence") or []), "social_status": lead.get("social_status"),
                             "category": lead.get("category"), "rating": lead.get("rating"), "reviews": lead.get("reviews"),
                             "maps_url": lead.get("maps_url"), "source": ", ".join(merged_sources), "sources": json.dumps(merged_sources),
                             "lead_score": lead.get("lead_score"), "lead_type": lead.get("lead_type"),
@@ -2078,7 +2104,7 @@ def search(req: SearchRequest, current_user: dict = Depends(get_current_user)):
                         row = None
                         if existing[1] == current_user["id"]:
                             cur.execute("""UPDATE leads SET provider_place_id=%(provider_place_id)s,name=%(name)s,address=%(address)s,city=%(city)s,region=%(region)s,country=%(country)s,
-                                latitude=%(latitude)s,longitude=%(longitude)s,phone=%(phone)s,website=%(website)s,email=%(email)s,instagram=%(instagram)s,facebook=%(facebook)s,twitter=%(twitter)s,
+                                latitude=%(latitude)s,longitude=%(longitude)s,phone=%(phone)s,website=%(website)s,email=%(email)s,instagram=COALESCE(NULLIF(%(instagram)s,''),instagram),facebook=COALESCE(NULLIF(%(facebook)s,''),facebook),twitter=COALESCE(NULLIF(%(twitter)s,''),twitter),linkedin=COALESCE(NULLIF(%(linkedin)s,''),linkedin),youtube=COALESCE(NULLIF(%(youtube)s,''),youtube),tiktok=COALESCE(NULLIF(%(tiktok)s,''),tiktok),social_evidence=CASE WHEN %(social_evidence)s::jsonb <> '[]'::jsonb THEN %(social_evidence)s::jsonb ELSE social_evidence END,social_status=COALESCE(NULLIF(%(social_status)s,''),social_status),
                                 category=%(category)s,rating=%(rating)s,reviews=%(reviews)s,maps_url=%(maps_url)s,source=%(source)s,sources=%(sources)s::jsonb,lead_score=%(lead_score)s,
                                 lead_type=%(lead_type)s,ai_recommendation=%(ai_recommendation)s,ai_reason=%(ai_reason)s,enrichment_source=%(enrichment_source)s,enrichment_at=%(enrichment_at)s,updated_at=NOW()
                                 WHERE id=%(id)s RETURNING id,status,notes,created_at,updated_at,assigned_to,last_contacted_date,next_followup_date,is_duplicate,duplicate_of""",
@@ -2087,13 +2113,13 @@ def search(req: SearchRequest, current_user: dict = Depends(get_current_user)):
                     else:
                         cur.execute("""INSERT INTO leads(
                             user_id,place_id,provider_place_id,name,address,city,region,country,latitude,longitude,
-                            phone,website,email,instagram,facebook,twitter,category,rating,reviews,maps_url,source,sources,
+                            phone,website,email,instagram,facebook,twitter,linkedin,youtube,tiktok,social_evidence,social_status,category,rating,reviews,maps_url,source,sources,
                             lead_score,lead_type,ai_recommendation,ai_reason,status,assigned_to,enrichment_source,enrichment_at,created_at,updated_at)
                             VALUES(%(user_id)s,%(place_id)s,%(provider_place_id)s,%(name)s,%(address)s,%(city)s,%(region)s,%(country)s,%(latitude)s,%(longitude)s,
-                            %(phone)s,%(website)s,%(email)s,%(instagram)s,%(facebook)s,%(twitter)s,%(category)s,%(rating)s,%(reviews)s,%(maps_url)s,%(source)s,%(sources)s::jsonb,
+                            %(phone)s,%(website)s,%(email)s,%(instagram)s,%(facebook)s,%(twitter)s,%(linkedin)s,%(youtube)s,%(tiktok)s,%(social_evidence)s::jsonb,%(social_status)s,%(category)s,%(rating)s,%(reviews)s,%(maps_url)s,%(source)s,%(sources)s::jsonb,
                             %(lead_score)s,%(lead_type)s,%(ai_recommendation)s,%(ai_reason)s,'New',%(assigned_to)s,%(enrichment_source)s,%(enrichment_at)s,NOW(),NOW())
                             RETURNING id,status,notes,created_at,updated_at,assigned_to,last_contacted_date,next_followup_date,is_duplicate,duplicate_of""", {
-                                **lead, "user_id": current_user["id"], "assigned_to": current_user["id"], "sources": json.dumps(lead.get("sources") or []),
+                                **lead, "user_id": current_user["id"], "assigned_to": current_user["id"], "sources": json.dumps(lead.get("sources") or []), "social_evidence": json.dumps(lead.get("social_evidence") or []),
                                 "enrichment_source": lead.get("enrichment_source"), "enrichment_at": lead.get("enrichment_at")})
                         row = cur.fetchone()
                     if existing:
@@ -2122,13 +2148,64 @@ def search(req: SearchRequest, current_user: dict = Depends(get_current_user)):
             "city_wide": req.city_wide, "radius_meters": radius_meters, "count": len(saved),
             "duplicates_skipped": len(duplicates), "duplicates": duplicates,
             "sources_used": used_sources, "warnings": list(dict.fromkeys(warnings)), "leads": saved}
+# Public social-profile discovery using the existing SerpApi Google Search engine.
+# Search results are treated as candidates; business-name/location checks reduce false matches.
+_SOCIAL_HOSTS = {
+    "linkedin": ("linkedin.com/company/", "linkedin.com/showcase/"),
+    "instagram": ("instagram.com/",),
+    "facebook": ("facebook.com/", "fb.com/"),
+    "youtube": ("youtube.com/", "youtu.be/"),
+    "twitter": ("twitter.com/", "x.com/"),
+    "tiktok": ("tiktok.com/",),
+}
+
+def discover_public_social_profiles(lead: dict):
+    """Find candidate business profiles via Google results; never infer absence from no results."""
+    if not SERPAPI_API_KEY or not lead or not lead.get("name"):
+        return {"social_status": "not_verified", "social_evidence": []}
+    name = str(lead.get("name") or "").strip()
+    city = str(lead.get("city") or lead.get("address") or "").strip()
+    # A single bounded Google query per lead limits usage of the existing SerpApi plan.
+    q = f'"{name}" {city} (site:linkedin.com/company OR site:instagram.com OR site:facebook.com OR site:youtube.com OR site:x.com OR site:tiktok.com)'
+    try:
+        data = serpapi_get({"engine": "google", "q": q, "hl": "en", "gl": "in", "num": 10}, timeout=18)
+    except Exception:
+        return {"social_status": "not_verified", "social_evidence": []}
+    profiles = {}
+    evidence = []
+    name_tokens = [x.casefold() for x in re.findall(r"[a-zA-Z0-9]+", name) if len(x) > 2]
+    for item in (data.get("organic_results") or [])[:10]:
+        link = str(item.get("link") or "").strip()
+        title = str(item.get("title") or "")
+        snippet = str(item.get("snippet") or "")
+        if not link or not _ai_safe_public_url(link):
+            continue
+        low = link.casefold()
+        platform = next((key for key, hosts in _SOCIAL_HOSTS.items() if any(host in low for host in hosts)), None)
+        if not platform:
+            continue
+        # Require a meaningful business-name token match in the result title/snippet.
+        haystack = (title + " " + snippet).casefold()
+        matched = sum(1 for token in name_tokens if token in haystack)
+        if not name_tokens or matched < min(2, len(name_tokens)):
+            continue
+        # Exclude generic social landing/search URLs, posts, and login pages where possible.
+        path = urlparse(link).path.strip("/").casefold()
+        if not path or path in {"login", "share", "search", "watch", "explore"}:
+            continue
+        if platform in profiles:
+            continue
+        profiles[platform] = link
+        evidence.append({"platform": platform, "url": link, "title": title[:240], "snippet": snippet[:500], "source": "SerpApi Google Search", "verified": True})
+    return {**profiles, "social_status": "profiles_found" if profiles else "not_found_in_public_search", "social_evidence": evidence}
+
 # ============================================================
 
 # Saved leads / filters / updates
 
 # ============================================================
 
-LEAD_SELECT = """SELECT id,name,address,city,region,country,phone,website,email,instagram,facebook,twitter,category,rating,reviews,maps_url,source,lead_score,lead_type,ai_recommendation,ai_reason,status,place_id,created_at,updated_at,notes,latitude,longitude,provider_place_id,sources,enrichment_source,enrichment_at,assigned_to,last_contacted_date,next_followup_date,is_duplicate,duplicate_of FROM leads"""
+LEAD_SELECT = """SELECT id,name,address,city,region,country,phone,website,email,instagram,facebook,twitter,linkedin,youtube,tiktok,social_evidence,social_status,category,rating,reviews,maps_url,source,lead_score,lead_type,ai_recommendation,ai_reason,status,place_id,created_at,updated_at,notes,latitude,longitude,provider_place_id,sources,enrichment_source,enrichment_at,assigned_to,last_contacted_date,next_followup_date,is_duplicate,duplicate_of FROM leads"""
 
 def row_to_lead(row):
 
@@ -2137,17 +2214,18 @@ def row_to_lead(row):
         "id": row[0], "name": row[1], "address": row[2], "city": row[3], "region": row[4], "country": row[5],
 
         "phone": row[6], "website": row[7], "email": row[8], "instagram": row[9], "facebook": row[10], "twitter": row[11],
+        "linkedin": row[12], "youtube": row[13], "tiktok": row[14], "social_evidence": row[15] or [], "social_status": row[16],
 
-        "category": row[12], "rating": row[13], "reviews": row[14], "maps_url": row[15], "source": row[16], "lead_score": row[17],
+        "category": row[17], "rating": row[18], "reviews": row[19], "maps_url": row[20], "source": row[21], "lead_score": row[22],
 
-        "lead_type": row[18], "ai_recommendation": row[19], "ai_reason": row[20], "status": row[21], "place_id": row[22],
+        "lead_type": row[23], "ai_recommendation": row[24], "ai_reason": row[25], "status": row[26], "place_id": row[27],
 
-        "created_at": str(row[23]), "updated_at": str(row[24]), "notes": row[25], "latitude": row[26], "longitude": row[27], "provider_place_id": row[28],
+        "created_at": str(row[28]), "updated_at": str(row[29]), "notes": row[30], "latitude": row[31], "longitude": row[32], "provider_place_id": row[33],
 
-        "sources": row[29] or [], "enrichment_source": row[30], "enrichment_at": str(row[31]) if row[31] else None,
-        "whatsapp_url": whatsapp_url(row[6]), "assigned_to": row[32],
-        "last_contacted_date": str(row[33]) if row[33] else None, "next_followup_date": str(row[34]) if row[34] else None,
-        "is_duplicate": bool(row[35]), "duplicate_of": row[36],
+        "sources": row[34] or [], "enrichment_source": row[35], "enrichment_at": str(row[36]) if row[36] else None,
+        "whatsapp_url": whatsapp_url(row[6]), "assigned_to": row[37],
+        "last_contacted_date": str(row[38]) if row[38] else None, "next_followup_date": str(row[39]) if row[39] else None,
+        "is_duplicate": bool(row[40]), "duplicate_of": row[41],
 
     }
 
@@ -2157,8 +2235,8 @@ def get_saved_leads(has_website: Optional[bool]=None,has_phone: Optional[bool]=N
     for flag,col in [(has_website,"website"),(has_phone,"phone"),(has_email,"email")]:
         if flag is True: clauses.append(f"NULLIF(TRIM({col}),'') IS NOT NULL")
         elif flag is False: clauses.append(f"NULLIF(TRIM({col}),'') IS NULL")
-    if has_social is True: clauses.append("(NULLIF(TRIM(instagram),'') IS NOT NULL OR NULLIF(TRIM(facebook),'') IS NOT NULL OR NULLIF(TRIM(twitter),'') IS NOT NULL)")
-    elif has_social is False: clauses.append("(NULLIF(TRIM(instagram),'') IS NULL AND NULLIF(TRIM(facebook),'') IS NULL AND NULLIF(TRIM(twitter),'') IS NULL)")
+    if has_social is True: clauses.append("(NULLIF(TRIM(instagram),'') IS NOT NULL OR NULLIF(TRIM(facebook),'') IS NOT NULL OR NULLIF(TRIM(twitter),'') IS NOT NULL OR NULLIF(TRIM(linkedin),'') IS NOT NULL OR NULLIF(TRIM(youtube),'') IS NOT NULL OR NULLIF(TRIM(tiktok),'') IS NOT NULL)")
+    elif has_social is False: clauses.append("(NULLIF(TRIM(instagram),'') IS NULL AND NULLIF(TRIM(facebook),'') IS NULL AND NULLIF(TRIM(twitter),'') IS NULL AND NULLIF(TRIM(linkedin),'') IS NULL AND NULLIF(TRIM(youtube),'') IS NULL AND NULLIF(TRIM(tiktok),'') IS NULL)")
     if min_score is not None: clauses.append("COALESCE(lead_score,0)>=%s"); params.append(min_score)
     if lead_type: clauses.append("lead_type=%s"); params.append(lead_type)
     if min_rating is not None: clauses.append("COALESCE(rating,0)>=%s"); params.append(min_rating)
@@ -3533,6 +3611,12 @@ WHAT THEY HAVE
 - Never convert a reviewer's opinion into a business fact.
 - Each fact must include its source.
 
+SOCIAL MEDIA REVIEW
+- Review only social profile URLs and search evidence provided. Never infer that an account does not exist just because search returned none.
+- When profiles are absent from the supplied evidence, state exactly: “Not found in public search” or “Not verified”; do not state the business has no social presence.
+- Assess observable public presence qualitatively only. Do not invent follower counts, engagement rates, posting frequency, or metrics.
+- If evidence supports a possible gap, include relevant social media management, content planning, profile optimization, marketing, enquiry/lead pathways, or engagement as hypotheses in opportunities and solution areas.
+
 WHAT THEY MAY NEED
 Return 2-4 BUSINESS-SPECIFIC opportunities.
 Each opportunity MUST be an object with:
@@ -3626,6 +3710,26 @@ def ai_research(req:AIResearchRequest,current_user:dict=Depends(get_current_user
                 lead_owner_check(cur,req.lead_id,current_user)
                 cur.execute(LEAD_SELECT+' WHERE id=%s',(req.lead_id,)); r=cur.fetchone(); lead=row_to_lead(r) if r else None
     evidence=_ai_public_business_evidence(req.query,req.city)
+    saved_crm_lead = lead
+    social_lookup = discover_public_social_profiles(lead or {"name": req.query, "city": req.city})
+    if lead is None:
+        lead = {"name": req.query, "city": req.city, **{k:v for k,v in social_lookup.items() if k in ("linkedin", "instagram", "facebook", "twitter", "youtube", "tiktok", "social_evidence", "social_status")}}
+    else:
+        for social_key in ("linkedin", "instagram", "facebook", "twitter", "youtube", "tiktok"):
+            if not lead.get(social_key) and social_lookup.get(social_key):
+                lead[social_key] = social_lookup[social_key]
+        if social_lookup.get("social_evidence"):
+            lead["social_evidence"] = list(lead.get("social_evidence") or []) + social_lookup["social_evidence"]
+        lead["social_status"] = social_lookup.get("social_status") or lead.get("social_status")
+    if lead:
+        social_evidence = lead.get("social_evidence") or []
+        for item in social_evidence if isinstance(social_evidence, list) else []:
+            if isinstance(item, dict) and item.get("url"):
+                _ai_add_evidence(evidence, f"Public social profile ({item.get('platform','social')}): {item.get('url')}", item.get("source") or "Saved SerpApi evidence")
+        for platform in ("linkedin", "instagram", "facebook", "twitter", "youtube", "tiktok"):
+            url = lead.get(platform)
+            if url:
+                _ai_add_evidence(evidence, f"CRM saved public social profile ({platform}): {url}", "Lead CRM record")
     result={}
     if GEMINI_API_KEY:
         try:
@@ -3642,10 +3746,12 @@ def ai_research(req:AIResearchRequest,current_user:dict=Depends(get_current_user
         category=json.loads(_ai_category_context(req.query,lead)).get("category") or (lead or {}).get("category") or "business"
         result={"business_snapshot":f"{(lead or {}).get('name') or req.query} — {category}, based on available evidence.","what_they_have":evidence[:8],"what_they_may_need":[],"what_we_can_offer":[],"how_to_approach":"Contact the owner or manager, lead with a verified fact, and validate one opportunity before proposing a solution.","opening_pitch":f"Hi, I was researching {(lead or {}).get('name') or req.query}. I found a few public details and wanted to understand how you currently handle new customer enquiries. Would you be open to a quick conversation?","next_action":"Verify the first opportunity directly with the owner or manager."}
     result=_ai_normalize_research(result,req.query,req.city,lead,evidence)
+    result["social_profiles"] = {k: (lead or {}).get(k) for k in ("linkedin", "instagram", "facebook", "twitter", "youtube", "tiktok") if (lead or {}).get(k)}
+    result["social_status"] = (lead or {}).get("social_status") or ("not_verified" if not req.lead_id else "not_checked")
     with db_conn() as conn:
         with conn.cursor() as cur: log_activity(cur,current_user["id"],req.lead_id,"ai_research_completed",{"query":req.query,"city":req.city,"evidence_count":len(evidence),"confidence":result.get("research_confidence")})
         conn.commit()
-    return {"success":True,"query":req.query,"city":req.city,"lead":lead,"sources":evidence,"research":result}
+    return {"success":True,"query":req.query,"city":req.city,"lead":saved_crm_lead,"sources":evidence,"research":result}
 
 # Search history / export / health
 
