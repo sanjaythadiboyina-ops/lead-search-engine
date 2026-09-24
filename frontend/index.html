@@ -436,13 +436,13 @@ input[type="date"],input[type="datetime-local"]{color-scheme:dark}
 /* Light palette; semantic variables keep the existing app components intact. */
 /* LIGHT MODE: match the user-approved mint/white canvas and forest-green controls. */
 body[data-theme="light"]{
- --bg:#eff8f2;--bg-2:#ffffff;--surface:#ffffff;--surface-2:#ffffff;--surface-3:#f0f6f3;
- --line:#dfe9e3;--line-2:#cbdcd1;--text:#17231c;--muted:#5d6d63;--faint:#7b8980;
- --lime:#16834f;--lime-2:#0f7043;--lime-dim:rgba(22,131,79,.10);--lime-line:rgba(22,131,79,.30);
- --green:#14885a;--green-dim:rgba(20,136,90,.10);--red:#c9363e;--red-dim:rgba(201,54,62,.09);
- --amber:#a86b08;--amber-dim:rgba(168,107,8,.10);
- --shadow:0 1px 2px rgba(28,55,40,.035),0 8px 24px rgba(28,95,60,.055);
- --shadow-lg:0 20px 55px rgba(28,55,40,.16);
+ /* Screenshot-matched green/white palette; theme-only changes. */
+ --bg:#f5f7f6;--bg-2:#ffffff;--surface:#ffffff;--surface-2:#ffffff;--surface-3:#f1f6f3;
+ --line:#e0e6e2;--line-2:#cbdcd1;--text:#17211b;--muted:#6d7771;--faint:#87918b;
+ --lime:#16834a;--lime-2:#0f6639;--lime-dim:rgba(22,131,74,.10);--lime-line:rgba(22,131,74,.30);
+ --green:#16834a;--green-dim:rgba(22,131,74,.10);--red:#c93434;--red-dim:rgba(201,52,52,.09);
+ --amber:#a66b08;--amber-dim:rgba(166,107,8,.10);
+ --shadow:0 2px 12px rgba(15,40,25,.06);--shadow-lg:0 20px 55px rgba(28,55,40,.16);
  color-scheme:light;
 }
 body[data-theme="light"]::before{background:radial-gradient(850px 520px at 8% 100%,rgba(74,222,128,.17),transparent 58%),radial-gradient(850px 520px at 100% 65%,rgba(96,165,250,.16),transparent 58%),linear-gradient(115deg,#f4fbf6 0%,#edf8f1 52%,#f0f7ff 100%)}
@@ -462,6 +462,79 @@ body[data-theme="light"] button.secondary:hover{background:#eaf5ee}
 body[data-theme="light"] .table th{background:#f0f6f2;color:#586a60;border-color:#dfe9e3}
 body[data-theme="light"] .table td{border-color:#e2ebe5}
 body[data-theme="light"] input[type="date"],body[data-theme="light"] input[type="datetime-local"]{color-scheme:light}
+
+
+/* Light theme fixes: chat, notifications and toast readability only. */
+body[data-theme="light"] .chat-messages{
+  background-color:#f8fbf9;
+  background-image:radial-gradient(rgba(22,131,74,.045) .7px,transparent .7px);
+}
+body[data-theme="light"] .chat-bubble{
+  background:#ffffff;
+  color:#17211b;
+  border-color:#dce8e0;
+  box-shadow:0 2px 8px rgba(15,40,25,.07);
+}
+body[data-theme="light"] .chat-bubble.mine{
+  background:#e7f4eb;
+  color:#173b2a;
+  border-color:#b9ddc5;
+}
+body[data-theme="light"] .chat-body{color:inherit}
+body[data-theme="light"] .chat-sender{color:#16834a}
+body[data-theme="light"] .chat-meta{color:#64756b}
+body[data-theme="light"] .chat-day{
+  background:#ffffff;
+  color:#64756b;
+  border-color:#dce8e0;
+}
+body[data-theme="light"] .chat-reply-preview{
+  background:#f3f8f4;
+  color:#52645a;
+  border-color:#dce8e0;
+}
+body[data-theme="light"] .chat-reply-preview b{color:#16834a}
+body[data-theme="light"] .chat-msg-actions button,
+body[data-theme="light"] .chat-reaction{
+  background:#f7faf8;
+  color:#42564a;
+  border-color:#d3e2d8;
+}
+body[data-theme="light"] .chat-msg-actions button:hover{
+  background:#e7f4eb;
+  color:#126b43;
+  border-color:#b9ddc5;
+}
+body[data-theme="light"] .notification-panel{
+  background:#ffffff;
+  color:#17211b;
+  border-color:#dce8e0;
+  box-shadow:0 20px 55px rgba(28,55,40,.16);
+}
+body[data-theme="light"] .notification-head{border-bottom-color:#e0e6e2}
+body[data-theme="light"] .notification-item{color:#24352b}
+body[data-theme="light"] .notification-item:hover{background:#f0f6ec}
+body[data-theme="light"] .notification-item.unread{
+  background:#e7f4eb;
+  border-color:#c8e5d1;
+  border-left-color:#16834a;
+}
+body[data-theme="light"] .notification-title{color:#24352b}
+body[data-theme="light"] .notification-message,
+body[data-theme="light"] .notification-time{color:#64756b}
+body[data-theme="light"] .notification-delete{color:#64756b}
+body[data-theme="light"] .notification-delete:hover{color:#b4232c;background:#fdecec}
+body[data-theme="light"] .toast{
+  background:#ffffff;
+  color:#17211b;
+  border-color:#cbdcd1;
+  box-shadow:0 12px 35px rgba(15,40,25,.16);
+}
+body[data-theme="light"] .toast.err{
+  background:#fff5f5;
+  color:#a61b24;
+  border-color:#f0b9bc;
+}
 @media(max-width:1200px){
  .main{width:calc(100% - 238px);max-width:calc(100% - 238px)}
  .search-box{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -730,12 +803,10 @@ function fillTeam(){const opts='<option value="">Any assignee</option>'+team.map
 function toggleSearchMode(){const keyword=$('searchMode').value==='keyword';$('categoryField').classList.toggle('hidden',keyword);$('keywordField').classList.toggle('hidden',!keyword)}
 function qFilters(){const p=new URLSearchParams();const add=(k,v)=>{if(v!==''&&v!=null)p.set(k,v)};add('city',$('fCity').value.trim());add('status',$('fStatus').value);add('lead_type',$('fType').value);add('assigned_to',$('fAssigned').value);add('date_from',$('fFrom').value);add('date_to',$('fTo').value);if($('fPhone').checked)p.set('has_phone','true');if($('fWebsite').checked)p.set('has_website','true');if($('fEmail').checked)p.set('has_email','true');if($('fSocial').checked)p.set('has_social','true');return p.toString()?('?'+p):''}
 function clearFilters(){['fCity','fFrom','fTo'].forEach(x=>$(x).value='');['fPhone','fWebsite','fEmail','fSocial'].forEach(x=>$(x).checked=false);$('fStatus').value='';$('fType').value='';$('fAssigned').value='';loadLeads()}
-
-function socialLinksHtml(l){const items=[['LinkedIn',l.linkedin],['Instagram',l.instagram],['Facebook',l.facebook],['X',l.twitter],['YouTube',l.youtube],['TikTok',l.tiktok]];const allowed=['linkedin.com','instagram.com','facebook.com','fb.com','x.com','twitter.com','youtube.com','youtu.be','tiktok.com'];const links=items.filter(([label,url])=>{if(!url)return false;try{const u=new URL(url);return u.protocol==='https:'&&allowed.some(h=>u.hostname===h||u.hostname.endsWith('.'+h))}catch(e){return false}});return links.length?'<div class="social-links" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">'+links.map(([label,url])=>`<a class="badge" target="_blank" rel="noopener noreferrer" href="${esc(url)}">${label}</a>`).join('')+'</div>':`<div class="muted" style="font-size:11px;margin-top:4px">${l.social_status==='not_found_in_public_search'?'Social profiles: not found in public search':l.social_status==='not_verified'?'Social profiles: not verified':'Social profiles: not checked'}</div>`}
 async function searchLeads(){const city=$('city').value.trim(),keywordMode=$('searchMode').value==='keyword',category=keywordMode?null:$('category').value,keyword=keywordMode?$('keyword').value.trim():null;if(!city)return toast('Enter a city.',true);if(keywordMode&&!keyword)return toast('Enter a keyword.',true);$('searchStatus').innerHTML='<span class="spinner"></span> Searching…';try{const d=await api('/api/search',{method:'POST',body:JSON.stringify({city,category,keyword,limit:Math.min(100,Math.max(1,Number($('limit').value)||10)),city_wide:$('cityWide').checked,radius_meters:5000,enrich:$('enrich').checked})});results=d.leads||[];renderResults();$('searchStatus').textContent=`Found ${d.count||0} new lead(s). ${d.duplicates_skipped||0} duplicate(s) skipped.`;if(d.warnings?.length)toast(d.warnings.join(' '),true);await Promise.all([loadLeads(),refreshDashboard()])}catch(e){$('searchStatus').textContent=e.message;toast(e.message,true)}}
-function renderResults(){const body=$('resultBody');body.innerHTML=results.map(l=>`<tr><td><b>${esc(l.name)}</b><br><span class="muted">${esc(l.city||'')} · ${esc(l.category||'')}</span>${l.is_duplicate?'<br><span class="badge cold">Duplicate</span>':''}${socialLinksHtml(l)}</td><td>${l.phone?`<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>`:'—'}</td><td>${l.lead_score??'—'}</td><td><span class="badge ${priority(l.lead_type)}">${esc(l.lead_type||'Cold Lead')}</span></td><td>${esc(l.ai_recommendation||'Review and qualify this lead')}</td><td><div class="actions"><button class="primary" onclick="openDetail(${l.id})">Open</button>${l.phone?`<button class="secondary" onclick="openWhatsApp(${l.id})">WhatsApp</button>`:''}<select class="group-select" id="rg${l.id}"><option value="">${groups.length?'Add to Group':'No groups yet'}</option>${groups.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select><button class="secondary" onclick="addResultToGroup(${l.id})">Add</button><button class="secondary" onclick="createGroupFromSearch(${l.id})">+ Group</button></div></td></tr>`).join('');$('resultEmpty').classList.toggle('hidden',results.length>0)}
+function renderResults(){const body=$('resultBody');body.innerHTML=results.map(l=>`<tr><td><b>${esc(l.name)}</b><br><span class="muted">${esc(l.city||'')} · ${esc(l.category||'')}</span>${l.is_duplicate?'<br><span class="badge cold">Duplicate</span>':''}</td><td>${l.phone?`<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>`:'—'}</td><td>${l.lead_score??'—'}</td><td><span class="badge ${priority(l.lead_type)}">${esc(l.lead_type||'Cold Lead')}</span></td><td>${esc(l.ai_recommendation||'Review and qualify this lead')}</td><td><div class="actions"><button class="primary" onclick="openDetail(${l.id})">Open</button>${l.phone?`<button class="secondary" onclick="openWhatsApp(${l.id})">WhatsApp</button>`:''}<select class="group-select" id="rg${l.id}"><option value="">${groups.length?'Add to Group':'No groups yet'}</option>${groups.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select><button class="secondary" onclick="addResultToGroup(${l.id})">Add</button><button class="secondary" onclick="createGroupFromSearch(${l.id})">+ Group</button></div></td></tr>`).join('');$('resultEmpty').classList.toggle('hidden',results.length>0)}
 async function loadLeads(){try{const d=await api('/api/leads'+qFilters());leads=d.leads||[];renderLeads()}catch(e){toast(e.message,true)}}
-function renderLeads(){$('leadBody').innerHTML=leads.map(l=>`<tr><td><input class="lead-check" type="checkbox" data-id="${l.id}"></td><td><b>${esc(l.name)}</b><br><span class="muted">${esc(l.city||'')} · ${esc(l.category||'')}</span>${l.is_duplicate?'<br><span class="badge cold">Duplicate</span>':''}${socialLinksHtml(l)}</td><td>${l.phone?`<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>`:'—'}</td><td><span class="badge ${priority(l.lead_type)}">${esc(l.lead_type||'Cold Lead')}</span></td><td><select onchange="updateStatus(${l.id},this.value)">${STATUSES.map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('')}</select></td><td>${esc(member(l.assigned_to))}</td><td>${dateOnly(l.next_followup_date)}</td><td>${dateOnly(l.last_contacted_date)}</td><td><div class="actions"><button class="secondary" onclick="openDetail(${l.id})">Open</button>${l.phone?'<button class="secondary" onclick="openWhatsApp('+l.id+')">WhatsApp</button>':''}<button class="secondary" onclick="downloadLeadExcel(${l.id})">Download</button></div></td></tr>`).join('');$('leadCount').textContent=`${leads.length} lead(s)`;$('leadEmpty').classList.toggle('hidden',leads.length>0);$('allLeads').checked=false}
+function renderLeads(){$('leadBody').innerHTML=leads.map(l=>`<tr><td><input class="lead-check" type="checkbox" data-id="${l.id}"></td><td><b>${esc(l.name)}</b><br><span class="muted">${esc(l.city||'')} · ${esc(l.category||'')}</span>${l.is_duplicate?'<br><span class="badge cold">Duplicate</span>':''}</td><td>${l.phone?`<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>`:'—'}</td><td><span class="badge ${priority(l.lead_type)}">${esc(l.lead_type||'Cold Lead')}</span></td><td><select onchange="updateStatus(${l.id},this.value)">${STATUSES.map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('')}</select></td><td>${esc(member(l.assigned_to))}</td><td>${dateOnly(l.next_followup_date)}</td><td>${dateOnly(l.last_contacted_date)}</td><td><div class="actions"><button class="secondary" onclick="openDetail(${l.id})">Open</button>${l.phone?'<button class="secondary" onclick="openWhatsApp('+l.id+')">WhatsApp</button>':''}<button class="secondary" onclick="downloadLeadExcel(${l.id})">Download</button></div></td></tr>`).join('');$('leadCount').textContent=`${leads.length} lead(s)`;$('leadEmpty').classList.toggle('hidden',leads.length>0);$('allLeads').checked=false}
 function selected(){return [...document.querySelectorAll('.lead-check:checked')].map(x=>Number(x.dataset.id))}function toggleAll(on){document.querySelectorAll('.lead-check').forEach(x=>x.checked=on)}
 async function updateStatus(id,status){try{await api(`/api/leads/${id}/status`,{method:'PATCH',body:JSON.stringify({status})});const l=[...leads,...results].find(x=>x.id===id);if(l)l.status=status;toast('Status updated');await Promise.all([loadLeads(),refreshDashboard()])}catch(e){toast(e.message,true)}}
 function detailInfo(label,value){return `<div class="info"><b>${esc(label)}</b>${value?esc(value):'—'}</div>`}
@@ -763,7 +834,7 @@ async function createGroup(){const name=$('groupName').value.trim();if(!name)ret
 async function openGroup(id){const g=groups.find(x=>x.id===id);activeGroupId=id;try{const d=await api(`/api/groups/${id}/leads`);$('groupTitle').textContent=g?.name||'Group';$('groupBody').innerHTML=(d.leads||[]).map(l=>`<tr><td><b>${esc(l.name)}</b></td><td>${esc(l.phone||'—')}</td><td><span class="badge ${statusClass(l.status)}">${esc(l.status||'New')}</span></td><td><span class="badge ${priority(l.lead_type)}">${esc(l.lead_type||'Cold Lead')}</span></td><td><button class="danger" onclick="removeGroupLead(${id},${l.id})">Remove</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">No leads in this group.</td></tr>';$('groupView').classList.remove('hidden')}catch(e){toast(e.message,true)}}
 async function removeGroupLead(gid,lid){try{await api(`/api/groups/${gid}/leads/${lid}`,{method:'DELETE'});await openGroup(gid);toast('Removed')}catch(e){toast(e.message,true)}}function closeGroup(){activeGroupId=null;$('groupView').classList.add('hidden')}
 async function exportGroupExcel(id){if(!id)return toast('Open a group first.',true);download(`/api/groups/${id}/export-excel`,`${(groups.find(g=>g.id===id)?.name||'group').replace(/[^a-z0-9_-]+/gi,'_')}.xlsx`)}
-async function runAIResearch(){const query=$('aiQuery').value.trim(),city=$('aiCity').value.trim();if(query.length<2)return toast('Enter a business or research query.',true);$('aiStatus').innerHTML='<span class="spinner"></span> Researching business evidence…';$('aiResearchResult').classList.add('hidden');try{const d=await api('/api/ai-research',{method:'POST',body:JSON.stringify({query,city:city||null})});const r=d.research||{};const confidence=(r.research_confidence||'medium').toLowerCase();$('aiResearchResult').innerHTML=`<div class="toolbar ai-research-head"><div><h2>${esc(r.business_snapshot||query)}</h2><span class="muted">Evidence-based research · facts first, hypotheses second</span></div><span class="ai-confidence ${esc(confidence)}">${esc(confidence)} confidence · ${d.sources?.length||0} evidence items</span></div><div class="ai-research-grid"><section class="info ai-evidence"><b>What They Have</b><div class="ai-section-note">Verified business facts only</div>${factsHtml(r.what_they_have)}</section><section class="info ai-opportunity"><b>What They May Need</b><div class="ai-section-note">Business-specific hypotheses to validate</div>${opportunitiesHtml(r.what_they_may_need)}</section><section class="info ai-offer"><b>What We Can Offer</b><div class="ai-section-note">Potential solution areas — not assumed company capabilities</div>${offersHtml(r.what_we_can_offer)}</section><section class="info ai-approach"><b>How to Approach</b><p>${esc(r.how_to_approach||'—')}</p></section><section class="info ai-next"><b>Next Action</b><p>${esc(r.next_action||'—')}</p></section><section class="info ai-pitch"><b>Opening Pitch</b><p>${esc(r.opening_pitch||'—')}</p></section><section class="info ai-social"><b>Public Social Profiles</b><div class="ai-section-note">Public links surfaced by available evidence; not an exhaustive account audit.</div>${socialLinksHtml(r.social_profiles||{})}</section></div>`;$('aiResearchResult').classList.remove('hidden');$('aiStatus').textContent=`Research completed · ${d.sources?.length||0} evidence item(s) collected.`}catch(e){$('aiStatus').textContent='';toast(e.message,true)} }
+async function runAIResearch(){const query=$('aiQuery').value.trim(),city=$('aiCity').value.trim();if(query.length<2)return toast('Enter a business or research query.',true);$('aiStatus').innerHTML='<span class="spinner"></span> Researching business evidence…';$('aiResearchResult').classList.add('hidden');try{const d=await api('/api/ai-research',{method:'POST',body:JSON.stringify({query,city:city||null})});const r=d.research||{};const confidence=(r.research_confidence||'medium').toLowerCase();$('aiResearchResult').innerHTML=`<div class="toolbar ai-research-head"><div><h2>${esc(r.business_snapshot||query)}</h2><span class="muted">Evidence-based research · facts first, hypotheses second</span></div><span class="ai-confidence ${esc(confidence)}">${esc(confidence)} confidence · ${d.sources?.length||0} evidence items</span></div><div class="ai-research-grid"><section class="info ai-evidence"><b>What They Have</b><div class="ai-section-note">Verified business facts only</div>${factsHtml(r.what_they_have)}</section><section class="info ai-opportunity"><b>What They May Need</b><div class="ai-section-note">Business-specific hypotheses to validate</div>${opportunitiesHtml(r.what_they_may_need)}</section><section class="info ai-offer"><b>What We Can Offer</b><div class="ai-section-note">Potential solution areas — not assumed company capabilities</div>${offersHtml(r.what_we_can_offer)}</section><section class="info ai-approach"><b>How to Approach</b><p>${esc(r.how_to_approach||'—')}</p></section><section class="info ai-next"><b>Next Action</b><p>${esc(r.next_action||'—')}</p></section><section class="info ai-pitch"><b>Opening Pitch</b><p>${esc(r.opening_pitch||'—')}</p></section></div>`;$('aiResearchResult').classList.remove('hidden');$('aiStatus').textContent=`Research completed · ${d.sources?.length||0} evidence item(s) collected.`}catch(e){$('aiStatus').textContent='';toast(e.message,true)} }
 function factsHtml(v){const a=Array.isArray(v)?v:(v?[v]:[]);if(!a.length)return '<div class="ai-empty">No business-specific facts were verified from available public evidence.</div>';return '<div class="ai-facts">'+a.map(x=>{const fact=typeof x==='string'?x:(x?.fact||'');const source=typeof x==='string'?'':(x?.source||'');return `<div class="ai-fact"><div>${esc(String(fact))}</div>${source?`<span>${esc(String(source))}</span>`:''}</div>`}).join('')+'</div>'}
 function opportunitiesHtml(v){const a=Array.isArray(v)?v:(v?[v]:[]);if(!a.length)return '<div class="ai-empty">No strong business-specific opportunity was established yet. Validate needs directly.</div>';return '<div class="ai-opportunities">'+a.map(x=>{if(typeof x==='string')return `<div class="ai-opportunity-card"><b>${esc(x)}</b><span>Hypothesis — validate with the business.</span></div>`;return `<div class="ai-opportunity-card"><b>${esc(x?.opportunity||'Potential opportunity')}</b>${x?.evidence?`<span><strong>Evidence:</strong> ${esc(x.evidence)}</span>`:''}${x?.why?`<span><strong>Why:</strong> ${esc(x.why)}</span>`:''}${x?.discovery_question?`<span><strong>Ask:</strong> “${esc(x.discovery_question)}”</span>`:''}</div>`}).join('')+'</div>'}
 function offersHtml(v){const a=Array.isArray(v)?v:(v?[v]:[]);if(!a.length)return '<div class="ai-empty">No solution area was confidently mapped yet.</div>';return '<div class="ai-offers">'+a.map(x=>{if(typeof x==='string')return `<div class="ai-offer-card">${esc(x)}</div>`;return `<div class="ai-offer-card"><b>${esc(x?.solution_area||'Potential solution area')}</b>${x?.linked_opportunity?`<span>For: ${esc(x.linked_opportunity)}</span>`:''}</div>`}).join('')+'</div>'}
