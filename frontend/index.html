@@ -436,13 +436,13 @@ input[type="date"],input[type="datetime-local"]{color-scheme:dark}
 /* Light palette; semantic variables keep the existing app components intact. */
 /* LIGHT MODE: match the user-approved mint/white canvas and forest-green controls. */
 body[data-theme="light"]{
- /* Screenshot-matched green/white palette; theme-only changes. */
- --bg:#f5f7f6;--bg-2:#ffffff;--surface:#ffffff;--surface-2:#ffffff;--surface-3:#f1f6f3;
- --line:#e0e6e2;--line-2:#cbdcd1;--text:#17211b;--muted:#6d7771;--faint:#87918b;
- --lime:#16834a;--lime-2:#0f6639;--lime-dim:rgba(22,131,74,.10);--lime-line:rgba(22,131,74,.30);
- --green:#16834a;--green-dim:rgba(22,131,74,.10);--red:#c93434;--red-dim:rgba(201,52,52,.09);
- --amber:#a66b08;--amber-dim:rgba(166,107,8,.10);
- --shadow:0 2px 12px rgba(15,40,25,.06);--shadow-lg:0 20px 55px rgba(28,55,40,.16);
+ --bg:#eff8f2;--bg-2:#ffffff;--surface:#ffffff;--surface-2:#ffffff;--surface-3:#f0f6f3;
+ --line:#dfe9e3;--line-2:#cbdcd1;--text:#17231c;--muted:#5d6d63;--faint:#7b8980;
+ --lime:#16834f;--lime-2:#0f7043;--lime-dim:rgba(22,131,79,.10);--lime-line:rgba(22,131,79,.30);
+ --green:#14885a;--green-dim:rgba(20,136,90,.10);--red:#c9363e;--red-dim:rgba(201,54,62,.09);
+ --amber:#a86b08;--amber-dim:rgba(168,107,8,.10);
+ --shadow:0 1px 2px rgba(28,55,40,.035),0 8px 24px rgba(28,95,60,.055);
+ --shadow-lg:0 20px 55px rgba(28,55,40,.16);
  color-scheme:light;
 }
 body[data-theme="light"]::before{background:radial-gradient(850px 520px at 8% 100%,rgba(74,222,128,.17),transparent 58%),radial-gradient(850px 520px at 100% 65%,rgba(96,165,250,.16),transparent 58%),linear-gradient(115deg,#f4fbf6 0%,#edf8f1 52%,#f0f7ff 100%)}
@@ -462,6 +462,21 @@ body[data-theme="light"] button.secondary:hover{background:#eaf5ee}
 body[data-theme="light"] .table th{background:#f0f6f2;color:#586a60;border-color:#dfe9e3}
 body[data-theme="light"] .table td{border-color:#e2ebe5}
 body[data-theme="light"] input[type="date"],body[data-theme="light"] input[type="datetime-local"]{color-scheme:light}
+
+/* Chat-only theme correction: readable bubbles in both themes. */
+body[data-theme="light"] .chat-messages{background-color:#fff;background-image:radial-gradient(rgba(22,131,79,.045) .7px,transparent .7px)}
+body[data-theme="light"] .chat-bubble{background:#f5f8f6;border-color:#dce8e0;color:#17231c;box-shadow:0 2px 8px rgba(28,55,40,.07)}
+body[data-theme="light"] .chat-bubble.mine{background:#e3f3e8;border-color:#b9ddc6;color:#173b27}
+body[data-theme="light"] .chat-bubble .chat-body{color:inherit}
+body[data-theme="light"] .chat-bubble .chat-sender,body[data-theme="light"] .chat-bubble .chat-reply-preview b{color:#126b43}
+body[data-theme="light"] .chat-bubble .chat-meta{color:#607267}
+body[data-theme="light"] .chat-bubble .chat-reply-preview{background:#edf5ef;color:#52665a;border-left-color:#16834f}
+body[data-theme="light"] .chat-bubble .chat-msg-actions button{background:#fff;color:#43564a;border-color:#cbdcd1}
+body[data-theme="dark"] .chat-bubble{color:var(--text)}
+body[data-theme="dark"] .chat-bubble.mine{background:#1c2b15;color:#f1f5ed;border-color:rgba(163,230,53,.22)}
+body[data-theme="dark"] .chat-bubble.mine .chat-body{color:#f1f5ed}
+/* Avoid replaying entrance animations for every existing message after polling. */
+.chat-bubble-row{animation:none}
 @media(max-width:1200px){
  .main{width:calc(100% - 238px);max-width:calc(100% - 238px)}
  .search-box{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -862,6 +877,9 @@ function groupChatMessages(messages){
 }
 function renderMessageList(messages,teamMode=false){
   const body=$("chatMessages");
+  // Preserve the reader's scroll position during polling; only follow the latest
+  // message when they were already near the bottom.
+  const wasNearBottom=(body.scrollHeight-body.scrollTop-body.clientHeight)<100;
   body.innerHTML=groupChatMessages(messages).map(item=>{
     if(item.type==="day")return `<div class="chat-day">${esc(item.label)}</div>`;
     const m=item.message,mine=Number(m.sender_id)===Number(user?.id),sender=m.sender||{},deleted=!!m.is_deleted;
@@ -869,7 +887,7 @@ function renderMessageList(messages,teamMode=false){
     const actions=deleted?`<div class="chat-msg-actions"><button onclick="replyChatMessage(event,${Number(m.id)},${teamMode})">Reply</button></div>`:`<div class="chat-msg-actions"><button onclick="replyChatMessage(event,${Number(m.id)},${teamMode})">Reply</button><button onclick="copyChatMessage(event,${Number(m.id)},${JSON.stringify(m.body||'')})">Copy</button>${mine?`<button onclick="editChatMessage(event,${Number(m.id)},${JSON.stringify(m.body||'')},${teamMode})">Edit</button><button onclick="deleteChatMessage(event,${Number(m.id)},${teamMode})">Delete</button>`:''}<button onclick="reactChatMessage(event,${Number(m.id)},${teamMode},'👍')">👍</button><button onclick="reactChatMessage(event,${Number(m.id)},${teamMode},'❤️')">❤️</button></div>`;
     return `<div class="chat-bubble-row ${mine?'mine':''}"><div class="chat-bubble ${mine?'mine':''}">${!mine?`<div class="chat-sender">${esc(sender.name||sender.email||"Team member")}${teamMode?` · ${esc(sender.role||"Agent")}`:''}</div>`:''}${m.reply_to_id&&!deleted?`<div class="chat-reply-preview"><b>Replying to ${esc(m.reply_sender_name||'message')}</b><div>${esc(m.reply_body||'Original message')}</div></div>`:''}<div class="chat-body ${deleted?'deleted':''}">${esc(safeBody)}</div><div class="chat-meta">${chatTime(m.created_at)}${m.edited_at&&!deleted?' · edited':''}${mine?` · ${teamMode?'✓ Sent':(m.is_read?'✓✓ Read':'✓ Sent')}`:''}</div>${actions}</div></div>`;
   }).join("")||'<div class="chat-empty">No messages yet.<br>Say hello 👋</div>';
-  body.scrollTop=body.scrollHeight;
+  if(wasNearBottom)body.scrollTop=body.scrollHeight;
 }
 function replyChatMessage(e,id,teamMode){e?.stopPropagation();const list=teamMode?window.__teamMessages||[]:window.__privateMessages||[];const m=list.find(x=>Number(x.id)===Number(id));chatReplyTo={id:Number(id),teamMode:!!teamMode};const input=$("chatInput");input.focus();input.placeholder="Reply to message…";$("chatReplyText").textContent=(m?.body||"Original message").slice(0,180);$("chatReplyBar").classList.remove("hidden");}
 function cancelChatReply(){chatReplyTo=null;$("chatReplyBar").classList.add("hidden");$("chatReplyText").textContent="";$("chatInput").placeholder="Write a message…  Enter to send · Shift+Enter for new line";}
@@ -918,7 +936,10 @@ async function sendChatMessage(){
     input.value="";cancelChatReply();
     if(activeChatMode==='team')await loadTeamRoomMessages(false,true);
     else await loadChatMessages(activeConversationId,false,true);
-    input.focus();
+    // On phones, dismiss the virtual keyboard after sending. On desktop, keep
+    // focus in the composer so keyboard-based users can continue typing.
+    if(window.matchMedia('(max-width: 768px)').matches){input.blur();}
+    else{input.focus();}
   }catch(e){toast(e.message,true)}
   finally{chatSending=false;$("chatSendBtn").disabled=false}
 }
