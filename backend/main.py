@@ -66,7 +66,11 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-JWT_SECRET = os.getenv("JWT_SECRET") or secrets.token_urlsafe(32)
+_configured_jwt_secret = os.getenv("JWT_SECRET", "").strip()
+IS_PRODUCTION = os.getenv("RENDER", "").lower() == "true" or os.getenv("APP_ENV", "").lower() == "production"
+if IS_PRODUCTION and not _configured_jwt_secret:
+    raise RuntimeError("JWT_SECRET must be configured in the production environment.")
+JWT_SECRET = _configured_jwt_secret or secrets.token_urlsafe(32)
 
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 
@@ -102,18 +106,24 @@ _SEARCH_EVENTS = defaultdict(deque)
 SEARCH_WINDOW_SECONDS = 300
 SEARCH_MAX_REQUESTS = 20
 
+_default_frontend_origins = [
+    "https://lead-search-engine.onrender.com",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+_allowed_origins = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("FRONTEND_ORIGINS", ",".join(_default_frontend_origins)).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
-
     CORSMiddleware,
-
-    allow_origins=["*"],
-
+    allow_origins=_allowed_origins,
     allow_credentials=True,
-
-    allow_methods=["*"],
-
-    allow_headers=["*"],
-
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
+    max_age=600,
 )
 
 CATEGORY_MAP = {
